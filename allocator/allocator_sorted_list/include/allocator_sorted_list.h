@@ -18,16 +18,19 @@ class allocator_sorted_list final:
 private:
     
     void *_trusted_memory;
+    logger *_logger;
+    allocator *_allocator;
+    fit_mode _fitMode;
 
 public:
     
     ~allocator_sorted_list() override;
     
     allocator_sorted_list(
-        allocator_sorted_list const &other);
+        allocator_sorted_list const &other) = delete;
     
     allocator_sorted_list &operator=(
-        allocator_sorted_list const &other);
+        allocator_sorted_list const &other) = delete;
     
     allocator_sorted_list(
         allocator_sorted_list &&other) noexcept;

@@ -4,19 +4,7 @@
 
 allocator_sorted_list::~allocator_sorted_list()
 {
-    throw not_implemented("allocator_sorted_list::~allocator_sorted_list()", "your code should be here...");
-}
-
-allocator_sorted_list::allocator_sorted_list(
-    allocator_sorted_list const &other)
-{
-    throw not_implemented("allocator_sorted_list::allocator_sorted_list(allocator_sorted_list const &)", "your code should be here...");
-}
-
-allocator_sorted_list &allocator_sorted_list::operator=(
-    allocator_sorted_list const &other)
-{
-    throw not_implemented("allocator_sorted_list &allocator_sorted_list::operator=(allocator_sorted_list const &)", "your code should be here...");
+    //throw not_implemented("allocator_sorted_list::~allocator_sorted_list()", "your code should be here...");
 }
 
 allocator_sorted_list::allocator_sorted_list(
@@ -35,9 +23,23 @@ allocator_sorted_list::allocator_sorted_list(
     size_t space_size,
     allocator *parent_allocator,
     logger *logger,
-    allocator_with_fit_mode::fit_mode allocate_fit_mode)
+    allocator_with_fit_mode::fit_mode allocate_fit_mode) :
+    _trusted_memory(nullptr)//,
+    //_allocator(parent_allocator),
+    //_logger(logger),
+    //_fitMode(fit_mode::first_fit)
 {
-    throw not_implemented("allocator_sorted_list::allocator_sorted_list(size_t, allocator *, logger *, allocator_with_fit_mode::fit_mode)", "your code should be here...");
+    if(!space_size) throw std::logic_error("space size cant be eq 0");
+    if(_allocator == nullptr) {
+        _trusted_memory = ::operator new(space_size);
+    }else {
+        _trusted_memory = _allocator->allocate(1,space_size);
+    }
+    auto *ptr = reinterpret_cast<unsigned char *>(_trusted_memory);
+    *(reinterpret_cast<size_t *>(ptr)) = space_size;
+    ptr += sizeof(size_t);
+    *(reinterpret_cast<void **>(ptr)) = reinterpret_cast<void *>(ptr + sizeof(void **));
+    //throw not_implemented("allocator_sorted_list::allocator_sorted_list(size_t, allocator *, logger *, allocator_with_fit_mode::fit_mode)", "your code should be here...");
 }
 
 [[nodiscard]] void *allocator_sorted_list::allocate(
@@ -56,7 +58,8 @@ void allocator_sorted_list::deallocate(
 inline void allocator_sorted_list::set_fit_mode(
     allocator_with_fit_mode::fit_mode mode)
 {
-    throw not_implemented("inline void allocator_sorted_list::set_fit_mode(allocator_with_fit_mode::fit_mode)", "your code should be here...");
+    _fitMode = mode;
+    //throw not_implemented("inline void allocator_sorted_list::set_fit_mode(allocator_with_fit_mode::fit_mode)", "your code should be here...");
 }
 
 inline allocator *allocator_sorted_list::get_allocator() const
@@ -71,10 +74,12 @@ std::vector<allocator_test_utils::block_info> allocator_sorted_list::get_blocks_
 
 inline logger *allocator_sorted_list::get_logger() const
 {
-    throw not_implemented("inline logger *allocator_sorted_list::get_logger() const", "your code should be here...");
+    return _logger;
+    //throw not_implemented("inline logger *allocator_sorted_list::get_logger() const", "your code should be here...");
 }
 
 inline std::string allocator_sorted_list::get_typename() const noexcept
 {
-    throw not_implemented("inline std::string allocator_sorted_list::get_typename() const noexcept", "your code should be here...");
+    return "allocator_sorted_list";
+    //throw not_implemented("inline std::string allocator_sorted_list::get_typename() const noexcept", "your code should be here...");
 }

@@ -7,7 +7,23 @@
 class client_logger final:
     public logger
 {
+    friend client_logger_builder;
+public:
+    struct stream {
+        std::ofstream *_str;
+        size_t _countOfLogers;
 
+        explicit stream(std::string const &);
+        stream(stream const &) = delete;
+        stream(stream &&) noexcept;
+        ~stream();
+        stream &operator=(stream const &) = delete;
+        stream &operator=(stream &&) noexcept;
+    };
+private:
+    static std::map<std::string, stream> _streams;
+    std::map<std::string, unsigned char> _severities;
+    explicit client_logger(std::map<std::string, unsigned char> const &);
 public:
 
     client_logger(
