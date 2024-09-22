@@ -21,9 +21,16 @@ public:
         stream &operator=(stream &&) noexcept;
     };
 private:
+
+
     static std::map<std::string, stream> _streams;
     std::map<std::string, unsigned char> _severities;
+
+
     explicit client_logger(std::map<std::string, unsigned char> const &);
+
+    static void encrementStream(std::map<std::string, unsigned char>::iterator &);
+
 public:
 
     client_logger(
@@ -38,7 +45,7 @@ public:
     client_logger &operator=(
         client_logger &&other) noexcept;
 
-    ~client_logger() noexcept final;
+    ~client_logger() noexcept override;
 
 public:
 
