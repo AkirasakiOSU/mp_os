@@ -19,17 +19,23 @@ public:
         ~stream();
         stream &operator=(stream const &) = delete;
         stream &operator=(stream &&) noexcept;
+        std::ostream &operator<<(std::string const &) const;
     };
 private:
 
 
     static std::map<std::string, stream> _streams;
     std::map<std::string, unsigned char> _severities;
+    std::string _outputFormat;
 
 
-    explicit client_logger(std::map<std::string, unsigned char> const &);
+    explicit client_logger(std::map<std::string, unsigned char> const &, std::string const &);
 
-    static void encrementStream(std::map<std::string, unsigned char>::iterator &);
+    static void decrementStream(std::map<std::string, unsigned char>::iterator &);
+
+    static std::string current_date_to_string() noexcept;
+    static std::string current_time_to_string() noexcept;
+    std::string getOutputString(std::string const &, logger::severity) const;
 
 public:
 
@@ -50,8 +56,8 @@ public:
 public:
 
     [[nodiscard]] logger const *log(
-        const std::string &message,
-        logger::severity severity) const noexcept override;
+        const std::string &,
+        logger::severity) const noexcept override;
 
 };
 

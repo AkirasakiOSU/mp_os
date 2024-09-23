@@ -11,7 +11,7 @@ class client_logger_builder final:
 private:
 
     std::map<std::string, unsigned char> files;
-
+    std::string _outputFormat;
 
 public:
 
@@ -32,6 +32,8 @@ public:
     ~client_logger_builder() noexcept override;
 
 public:
+
+    logger_builder *add_output_format(std::string const &);
 
     logger_builder *add_file_stream(
         std::string const &stream_file_path,

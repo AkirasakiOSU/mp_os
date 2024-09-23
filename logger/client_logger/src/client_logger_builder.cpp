@@ -54,6 +54,12 @@ client_logger_builder::~client_logger_builder() noexcept
     //throw not_implemented("client_logger_builder::~client_logger_builder() noexcept", "your code should be here...");
 }
 
+logger_builder *client_logger_builder::add_output_format(std::string const &format) {
+    if(format.empty()) throw std::logic_error("Format cant be empty");
+    _outputFormat = format;
+    return this;
+}
+
 logger_builder *client_logger_builder::add_file_stream(
     std::string const &stream_file_path,
     logger::severity severity)
@@ -79,13 +85,13 @@ logger_builder *client_logger_builder::add_console_stream(
     logger::severity severity)
 {
     std::map<std::string, unsigned char>::iterator i;
-    i = files.find("cout");
+    i = files.find("cerr");
     if(i != files.end()) {
         if(((i->second >> static_cast<int>(severity)) & 1)) return this;
         i->second ^= (1 << static_cast<int>(severity));
         return this;
     }
-    files.emplace("cout", (1 << static_cast<int>(severity)));
+    files.emplace("cerr", (1 << static_cast<int>(severity)));
     return this;
     //throw not_implemented("logger_builder *client_logger_builder::add_console_stream(logger::severity severity)", "your code should be here...");
 }
@@ -106,6 +112,6 @@ logger_builder *client_logger_builder::clear()
 
 logger *client_logger_builder::build() const
 {
-    return new client_logger(files);
+    return new client_logger(files, _outputFormat);
     //throw not_implemented("logger *client_logger_builder::build() const", "your code should be here...");
 }
