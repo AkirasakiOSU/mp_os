@@ -4,26 +4,29 @@
 #include <fstream>
 #include <exception>
 #include <ios>
-std::map<std::string, client_logger::stream> client_logger::_streams;
+std::map<std::string, client_logger::stream> client_logger::_streams = std::map<std::string, client_logger::stream>();
 client_logger::stream::stream(std::string const &path) :
     _str(nullptr),
     _countOfLogers(1)
 {
     try {
-        _str = new std::ofstream(path, std::ios::app);
-        if(!_str->is_open()) throw std::logic_error("File open error");
+        _str = new std::ofstream;
+        _str->open(path, std::ios::app);
+        if(!_str->is_open()) {
+            delete _str;
+            _str = nullptr;
+            throw std::logic_error("File open error");
+        }
     }
     catch (std::bad_alloc const &e) {
         std::cerr << e.what() << std::endl;
         throw e;
     }
     catch (std::exception const &e) {
+        delete _str;
+        _str = nullptr;
         std::cerr << e.what() << std::endl;
         throw e;
-    }
-    catch (...) {
-        std::cerr << "Unknown error" << std::endl;
-        throw std::logic_error("Unknown error");
     }
 }
 
@@ -37,6 +40,7 @@ _countOfLogers(other._countOfLogers)
 
 client_logger::stream &client_logger::stream::operator=(stream &&other) noexcept {
     if(this != &other) {
+        _str->flush();
         _str->close();
         delete _str;
         _str = other._str;
@@ -48,13 +52,16 @@ client_logger::stream &client_logger::stream::operator=(stream &&other) noexcept
 }
 
 std::ostream &client_logger::stream::operator<<(std::string const &str) const {
-    return *_str << str;
+    return (*_str << str).flush();
 }
 
 client_logger::stream::~stream() {
     _countOfLogers = 0;
-    if(_str != nullptr) _str->close();
-    delete _str;
+    if (_str != nullptr) {
+        _str->flush();
+        _str->close();
+        delete _str;
+    }
     _str = nullptr;
 }
 
@@ -66,12 +73,15 @@ _outputFormat(outputFormat)
     if(outputFormat.empty()) throw std::logic_error("Format cant be empty");
     auto iterPaths = map.begin();
     while(iterPaths != map.end()) {
+        if(iterPaths->first == "cerr") {
+            ++iterPaths;
+            continue;
+        }
         auto iterStreams = _streams.find(iterPaths->first);
         if(iterStreams != _streams.end()) {
             ++(iterStreams->second._countOfLogers);
         }else {
-            stream node(iterPaths->first);
-            _streams.emplace(iterPaths->first, std::move(node));
+            _streams.emplace(iterPaths->first, stream(iterPaths->first));
         }
         ++iterPaths;
     }
@@ -116,6 +126,7 @@ std::string client_logger::getOutputString(std::string const &message, logger::s
     while(ptr != _outputFormat.end()) {
         if(*ptr == '%') {
             ++ptr;
+            if(ptr == _outputFormat.end()) throw std::logic_error("Format error!");
             switch (*ptr) {
                 case 'd':
                     res += current_date_to_string();
@@ -139,6 +150,16 @@ std::string client_logger::getOutputString(std::string const &message, logger::s
     return res;
 }
 
+void client_logger::checkUniqueFile(client_logger const &other) {
+    auto iterSeverity = _severities.begin();
+    while(iterSeverity != _severities.end()) {
+        if(other._severities.find(iterSeverity->first) == other._severities.end()) {
+            decrementStream(iterSeverity);
+        }
+        ++iterSeverity;
+    }
+}
+
 client_logger::client_logger(
     client_logger const &other) :
     _severities(other._severities)
@@ -152,18 +173,12 @@ client_logger::client_logger(
 }
 
 client_logger &client_logger::operator=(
-    client_logger const &other) :
-_outputFormat(other._outputFormat)
+    client_logger const &other)
 {
     if(this != &other) {
-        auto iterSeverity = _severities.begin();
-        while(iterSeverity != _severities.end()) {
-            if(other._severities.find(iterSeverity->first) == other._severities.end()) {
-                decrementStream(iterSeverity);
-            }
-            ++iterSeverity;
-        }
+        checkUniqueFile(other);
         _severities = other._severities;
+        _outputFormat = other._outputFormat;
     }
     return *this;
     //throw not_implemented("client_logger &client_logger::operator=(client_logger const &other)", "your code should be here...");
@@ -171,7 +186,8 @@ _outputFormat(other._outputFormat)
 
 client_logger::client_logger(
     client_logger &&other) noexcept :
-_severities(std::move(other._severities))
+_severities(std::move(other._severities)),
+_outputFormat(std::move(other._outputFormat))
 {
     //throw not_implemented("client_logger::client_logger(client_logger &&other) noexcept", "your code should be here...");
 }
@@ -179,7 +195,13 @@ _severities(std::move(other._severities))
 client_logger &client_logger::operator=(
     client_logger &&other) noexcept
 {
-    throw not_implemented("client_logger &client_logger::operator=(client_logger &&other) noexcept", "your code should be here...");
+    if(this != &other) {
+        checkUniqueFile(other);
+        _severities = std::move(other._severities);
+        _outputFormat = std::move(other._outputFormat);
+    }
+    return *this;
+    //throw not_implemented("client_logger &client_logger::operator=(client_logger &&other) noexcept", "your code should be here...");
 }
 
 client_logger::~client_logger() noexcept
@@ -205,7 +227,10 @@ logger const *client_logger::log(
                 ++iterSev;
                 continue;
             }
-            _streams.find(iterSev->first)->second << getOutputString(text, severity) << std::endl;
+            auto &target_stream = _streams.find(iterSev->first)->second;
+            target_stream << getOutputString(text, severity) << std::endl;
+            target_stream._str->flush();
+            //_streams.find(iterSev->first)->second._str->flush();
             //*((_streams.find(iterSev->first))->second._str) << 's' << std::endl;
             // *((_streams.find(iterSev->first))->second._str) << getOutputString(text, severity) << std::endl;
         }

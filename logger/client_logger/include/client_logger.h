@@ -36,6 +36,7 @@ private:
     static std::string current_date_to_string() noexcept;
     static std::string current_time_to_string() noexcept;
     std::string getOutputString(std::string const &, logger::severity) const;
+    void checkUniqueFile(client_logger const &other);
 
 public:
 

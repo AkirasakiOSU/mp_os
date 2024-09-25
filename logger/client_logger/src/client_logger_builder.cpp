@@ -13,8 +13,9 @@ client_logger_builder::client_logger_builder()
 }
 
 client_logger_builder::client_logger_builder(
-    client_logger_builder const &other) :
-    files(other.files)
+    client_logger_builder const &other):
+    files(other.files),
+    _outputFormat(other._outputFormat)
 {
     //throw not_implemented("client_logger_builder::client_logger_builder(client_logger_builder const &other)", "your code should be here...");
 }
@@ -25,6 +26,7 @@ client_logger_builder &client_logger_builder::operator=(
     if(this != &other) {
         files.clear();
         files = other.files;
+        _outputFormat = other._outputFormat;
     }
     return *this;
     //throw not_implemented("client_logger_builder &client_logger_builder::operator=(client_logger_builder const &other)", "your code should be here...");
@@ -32,7 +34,8 @@ client_logger_builder &client_logger_builder::operator=(
 
 client_logger_builder::client_logger_builder(
     client_logger_builder &&other) noexcept :
-    files(std::move(other.files))
+    files(std::move(other.files)),
+    _outputFormat(std::move(other._outputFormat))
 {
     //throw not_implemented("client_logger_builder::client_logger_builder(client_logger_builder &&other) noexcept", "your code should be here...");
 }
@@ -43,6 +46,7 @@ client_logger_builder &client_logger_builder::operator=(
     if(this != &other) {
         files.clear();
         files = std::move(other.files);
+        _outputFormat = std::move(other._outputFormat);
     }
     return *this;
     //throw not_implemented("client_logger_builder &client_logger_builder::operator=(client_logger_builder &&other) noexcept", "your code should be here...");
