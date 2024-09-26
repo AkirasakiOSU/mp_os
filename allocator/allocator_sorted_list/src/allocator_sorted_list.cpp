@@ -188,16 +188,23 @@ allocator_sorted_list::allocator_sorted_list(
     auto mutex = reinterpret_cast<std::mutex *>(_trusted_memory + MUTEX_SHIFT);
     mutex->lock();
     auto blockSize = value_size * values_count;
+    void *res = nullptr;
     try {
         switch (static_cast<int>(*(reinterpret_cast<allocator_with_fit_mode::fit_mode *>(_trusted_memory + FIT_MODE_SHIFT)))) {
             case 0:
-                return allocateFirstFit(blockSize);
+                res = allocateFirstFit(blockSize);
+                mutex->unlock();
+                return res;
                 break;
             case 1:
-                return allocateBestFit(blockSize);
+                res = allocateBestFit(blockSize);
+                mutex->unlock();
+                return res;
                 break;
             case 2:
-                return allocateWorstFit(blockSize);
+                res = allocateWorstFit(blockSize);
+                mutex->unlock();
+                return res;
                 break;
             default:
                 throw std::bad_alloc();
@@ -205,10 +212,12 @@ allocator_sorted_list::allocator_sorted_list(
         }
     }
     catch (std::bad_alloc const &e) {
+        mutex->unlock();
         std::cerr << e.what() << std::endl;
         throw e;
     }
     catch (std::exception const &e) {
+        mutex->unlock();
         std::cerr << e.what() << std::endl;
         throw e;
     }
