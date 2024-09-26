@@ -40,7 +40,7 @@ allocator_global_heap &allocator_global_heap::operator=(
 {
     void *allocatedMemory = nullptr;
     try {
-        allocatedMemory = operator new[](value_size * values_count);
+        allocatedMemory = ::operator new(value_size * values_count);
     }
     catch (std::bad_alloc const &e) {
         return nullptr;
@@ -55,7 +55,7 @@ allocator_global_heap &allocator_global_heap::operator=(
 void allocator_global_heap::deallocate(
     void *at)
 {
-    operator delete[](at);
+    ::operator delete(at);
     //throw not_implemented("void allocator_global_heap::deallocate(void *)", "your code should be here...");
 }
 

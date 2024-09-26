@@ -5,7 +5,21 @@
 #include <allocator_test_utils.h>
 #include <allocator_with_fit_mode.h>
 #include <logger_guardant.h>
+#include <mutex>
 #include <typename_holder.h>
+
+#define GLOBAL_META_SIZE sizeof(allocator *) + sizeof(logger *) + sizeof(std::mutex *) + sizeof(void *) + sizeof(allocator_with_fit_mode::fit_mode) + sizeof(size_t)
+#define LOCAL_META_SIZE sizeof(size_t) + sizeof(void *)
+
+#define TRUSTED_MEMORY_SIZE_SHIFT 0
+#define ALLOCATOR_SHIFT sizeof(size_t)
+#define LOGGER_SHIFT (ALLOCATOR_SHIFT + sizeof(allocator *))
+#define MUTEX_SHIFT (LOGGER_SHIFT + sizeof(logger *))
+#define FIRST_FREE_MEMORY_SHIFT (MUTEX_SHIFT + sizeof(std::mutex *))
+#define FIT_MODE_SHIFT (FIRST_FREE_MEMORY_SHIFT + sizeof(void *))
+
+#define SIZE_OF_BLOCK_SHIFT sizeof(void *)
+
 
 class allocator_sorted_list final:
     private allocator_guardant,
@@ -16,11 +30,16 @@ class allocator_sorted_list final:
 {
 
 private:
-    
     void *_trusted_memory;
-    logger *_logger;
-    allocator *_allocator;
-    fit_mode _fitMode;
+
+    void freeMemory();
+
+    void *allocateFullBlock(void *, void *);
+    void *allocateBlock(void *, void *, size_t);
+
+    void *allocateFirstFit(size_t);
+    void *allocateBestFit(size_t);
+    void *allocateWorstFit(size_t);
 
 public:
     
