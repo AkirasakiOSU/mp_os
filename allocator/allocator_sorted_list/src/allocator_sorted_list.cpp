@@ -4,12 +4,11 @@
 
 
 void allocator_sorted_list::freeMemory() {
-    auto allocatorPtr = *(reinterpret_cast<allocator **>(_trusted_memory + LOGGER_SHIFT));
+    auto trusted_memory = reinterpret_cast<unsigned char *>(_trusted_memory);
+    auto allocatorPtr = *(reinterpret_cast<allocator **>(trusted_memory + LOGGER_SHIFT));
     if(allocatorPtr == nullptr) {
-        ::operator delete(_trusted_memory + MUTEX_SHIFT);
         ::operator delete(_trusted_memory);
     } else {
-        allocatorPtr->deallocate(_trusted_memory + MUTEX_SHIFT);
         allocatorPtr->deallocate(_trusted_memory);
     }
 }
@@ -21,11 +20,11 @@ void *allocator_sorted_list::allocateFullBlock(void *pPrev, void *pNow) {
         *(reinterpret_cast<void **>(pPrev)) = *(reinterpret_cast<void **>(pNow));
     }
     *(reinterpret_cast<void **>(pNow)) = _trusted_memory;
-    return pNow + LOCAL_META_SIZE;
+    return reinterpret_cast<unsigned char *>(pNow) + LOCAL_META_SIZE;
 }
 
 void *allocator_sorted_list::allocateBlock(void *pPrev, void *pNow, size_t sizeOfNewBlock) {
-    auto sizeOfBlock = *(reinterpret_cast<size_t *>(pNow + SIZE_OF_BLOCK_SHIFT));
+    auto sizeOfBlock = *(reinterpret_cast<size_t *>(reinterpret_cast<unsigned char *>(pNow) + SIZE_OF_BLOCK_SHIFT));
     if(sizeOfBlock == sizeOfNewBlock) {
         return allocateFullBlock(pPrev, pNow);
     }
@@ -34,22 +33,23 @@ void *allocator_sorted_list::allocateBlock(void *pPrev, void *pNow, size_t sizeO
             return allocateFullBlock(pPrev, pNow);
         }
         void *newFreeBlock = nullptr;
-        *(reinterpret_cast<void **>(pPrev)) = newFreeBlock = pNow + sizeOfNewBlock;
+        *(reinterpret_cast<void **>(pPrev)) = newFreeBlock = reinterpret_cast<void *>(reinterpret_cast<unsigned char *>(pNow) + sizeOfNewBlock);
         *(reinterpret_cast<void **>(newFreeBlock)) = *(reinterpret_cast<void **>(pNow));
-        *(reinterpret_cast<size_t *>(newFreeBlock + SIZE_OF_BLOCK_SHIFT)) = sizeOfBlock - sizeOfNewBlock;
+        *(reinterpret_cast<size_t *>(reinterpret_cast<unsigned char *>(newFreeBlock) + SIZE_OF_BLOCK_SHIFT)) = sizeOfBlock - sizeOfNewBlock;
         *(reinterpret_cast<void **>(pNow)) = _trusted_memory;
-        *(reinterpret_cast<size_t *>(pNow + SIZE_OF_BLOCK_SHIFT)) = sizeOfNewBlock;
-        return pNow + LOCAL_META_SIZE;
+        *(reinterpret_cast<size_t *>(reinterpret_cast<unsigned char *>(pNow) + SIZE_OF_BLOCK_SHIFT)) = sizeOfNewBlock;
+        return reinterpret_cast<unsigned char *>(pNow) + LOCAL_META_SIZE;
     }
     throw std::bad_alloc();
 }
 
 void *allocator_sorted_list::allocateFirstFit(size_t size) {
+    auto trusted_memory = reinterpret_cast<unsigned char *>(_trusted_memory);
     void *pPrev, *pNow;
     auto sizeOfNewBlock = size + LOCAL_META_SIZE;
-    pNow = *(reinterpret_cast<void **>(pPrev = _trusted_memory + FIRST_FREE_MEMORY_SHIFT));
+    pNow = *(reinterpret_cast<void **>(pPrev = reinterpret_cast<void *>(trusted_memory + FIRST_FREE_MEMORY_SHIFT)));
     while(pNow != nullptr) {
-        auto sizeOfBlock = *(reinterpret_cast<size_t *>(pNow + SIZE_OF_BLOCK_SHIFT));
+        auto sizeOfBlock = *(reinterpret_cast<size_t *>(reinterpret_cast<unsigned char *>(pNow) + SIZE_OF_BLOCK_SHIFT));
         if(sizeOfBlock >= sizeOfNewBlock) return allocateBlock(pPrev, pNow, sizeOfNewBlock);
         pPrev = pNow;
         pNow = *(reinterpret_cast<void **>(pNow));
@@ -59,15 +59,16 @@ void *allocator_sorted_list::allocateFirstFit(size_t size) {
 }
 
 void *allocator_sorted_list::allocateBestFit(size_t size) {
+    auto trusted_memory = reinterpret_cast<unsigned char *>(_trusted_memory);
     std::pair<void *, void *> bestBlock;
     void *pNow, *pPrev;
     auto sizeOfNewBlock = size + LOCAL_META_SIZE;
-    bestBlock.second = pNow = *(reinterpret_cast<void **>(bestBlock.first = pPrev = _trusted_memory + FIRST_FREE_MEMORY_SHIFT));
+    bestBlock.second = pNow = *(reinterpret_cast<void **>(bestBlock.first = pPrev = reinterpret_cast<void *>(trusted_memory + FIRST_FREE_MEMORY_SHIFT)));
     while(pNow != nullptr) {
-        auto sizeOfBlock = *(reinterpret_cast<size_t *>(pNow + SIZE_OF_BLOCK_SHIFT));
+        auto sizeOfBlock = *(reinterpret_cast<size_t *>(reinterpret_cast<unsigned char *>(pNow) + SIZE_OF_BLOCK_SHIFT));
         if(sizeOfBlock == sizeOfNewBlock) return allocateFullBlock(pPrev, pNow);
         if(sizeOfBlock > sizeOfNewBlock) {
-            if(*(reinterpret_cast<size_t *>(bestBlock.second + SIZE_OF_BLOCK_SHIFT)) > sizeOfBlock) {
+            if(*(reinterpret_cast<size_t *>(reinterpret_cast<unsigned char *>(bestBlock.second) + SIZE_OF_BLOCK_SHIFT)) > sizeOfBlock) {
                 bestBlock.first = pPrev;
                 bestBlock.second = pNow;
             }
@@ -91,14 +92,15 @@ void *allocator_sorted_list::allocateBestFit(size_t size) {
 }
 
 void *allocator_sorted_list::allocateWorstFit(size_t size) {
+    auto trusted_memory = reinterpret_cast<unsigned char *>(_trusted_memory);
     std::pair<void *, void *> worstBlock;
     void *pNow, *pPrev;
     auto sizeOfNewBlock = size + LOCAL_META_SIZE;
-    worstBlock.second = pNow = *(reinterpret_cast<void **>(worstBlock.first = pPrev = _trusted_memory + FIRST_FREE_MEMORY_SHIFT));
+    worstBlock.second = pNow = *(reinterpret_cast<void **>(worstBlock.first = pPrev = reinterpret_cast<void *>(trusted_memory + FIRST_FREE_MEMORY_SHIFT)));
     while(pNow != nullptr) {
-        auto sizeOfBlock = *(reinterpret_cast<size_t *>(pNow + SIZE_OF_BLOCK_SHIFT));
+        auto sizeOfBlock = *(reinterpret_cast<size_t *>(reinterpret_cast<unsigned char *>(pNow) + SIZE_OF_BLOCK_SHIFT));
         if(sizeOfBlock >= sizeOfNewBlock) {
-            if(*(reinterpret_cast<size_t *>(worstBlock.second + SIZE_OF_BLOCK_SHIFT)) < sizeOfBlock) {
+            if(*(reinterpret_cast<size_t *>(reinterpret_cast<unsigned char *>(worstBlock.second) + SIZE_OF_BLOCK_SHIFT)) < sizeOfBlock) {
                 worstBlock.first = pPrev;
                 worstBlock.second = pNow;
             }
@@ -117,8 +119,6 @@ void *allocator_sorted_list::allocateWorstFit(size_t size) {
         std::cerr << e.what() << std::endl;
         throw e;
     }
-    throw std::bad_alloc();
-    return nullptr;
 }
 
 allocator_sorted_list::~allocator_sorted_list()
@@ -155,9 +155,9 @@ allocator_sorted_list::allocator_sorted_list(
     _trusted_memory(nullptr)
 {
     try {
-        auto fullSsize = space_size + GLOBAL_META_SIZE;
-        if(parent_allocator == nullptr) _trusted_memory = ::operator new(fullSsize);
-        else _trusted_memory = parent_allocator->allocate(fullSsize, 1);
+        auto fullSize = space_size + GLOBAL_META_SIZE;
+        if(parent_allocator == nullptr) _trusted_memory = ::operator new(fullSize);
+        else _trusted_memory = parent_allocator->allocate(fullSize, 1);
     }
     catch (std::bad_alloc const &e) {
         std::cerr << e.what() <<std::endl;
@@ -167,17 +167,18 @@ allocator_sorted_list::allocator_sorted_list(
         std::cerr << e.what() <<std::endl;
         throw e;
     }
-    void *firstBlock = nullptr;
-    *(reinterpret_cast<size_t *>(_trusted_memory + TRUSTED_MEMORY_SIZE_SHIFT)) = space_size;
-    *(reinterpret_cast<allocator **>(_trusted_memory + ALLOCATOR_SHIFT)) = parent_allocator;
-    *(reinterpret_cast<logger **>(_trusted_memory + LOGGER_SHIFT)) = loger;
-    *(reinterpret_cast<std::mutex **>(_trusted_memory + MUTEX_SHIFT)) = reinterpret_cast<std::mutex *>(((parent_allocator == nullptr) ? ::operator new(sizeof(std::mutex)) : (parent_allocator->allocate(sizeof(std::mutex), 1))));
-    *(reinterpret_cast<void **>(_trusted_memory + FIRST_FREE_MEMORY_SHIFT)) = firstBlock = _trusted_memory + GLOBAL_META_SIZE;
-    *(reinterpret_cast<allocator_with_fit_mode::fit_mode *>(_trusted_memory + FIT_MODE_SHIFT)) = allocate_fit_mode;
+    auto trusted_memory = reinterpret_cast<unsigned char *>(_trusted_memory);
 
+    *(reinterpret_cast<size_t *>(trusted_memory + TRUSTED_MEMORY_SIZE_SHIFT)) = space_size;
+    *(reinterpret_cast<allocator **>(trusted_memory + ALLOCATOR_SHIFT)) = parent_allocator;
+    *(reinterpret_cast<logger **>(trusted_memory + LOGGER_SHIFT)) = loger;
+    *(reinterpret_cast<std::mutex **>(trusted_memory + MUTEX_SHIFT)) = new std::mutex();
+    *(reinterpret_cast<void **>(trusted_memory + FIRST_FREE_MEMORY_SHIFT)) = reinterpret_cast<void *>(trusted_memory + GLOBAL_META_SIZE);
+    *(reinterpret_cast<allocator_with_fit_mode::fit_mode *>(trusted_memory + FIT_MODE_SHIFT)) = allocate_fit_mode;
 
+    void *firstBlock = *(reinterpret_cast<void **>(trusted_memory + FIRST_FREE_MEMORY_SHIFT));
     *(reinterpret_cast<void **>(firstBlock)) = nullptr;
-    *(reinterpret_cast<size_t *>(firstBlock + SIZE_OF_BLOCK_SHIFT)) = space_size + LOCAL_META_SIZE;
+    *(reinterpret_cast<size_t *>(reinterpret_cast<unsigned char *>(firstBlock) + SIZE_OF_BLOCK_SHIFT)) = space_size + LOCAL_META_SIZE;
     //throw not_implemented("allocator_sorted_list::allocator_sorted_list(size_t, allocator *, logger *, allocator_with_fit_mode::fit_mode)", "your code should be here...");
 }
 
@@ -185,30 +186,27 @@ allocator_sorted_list::allocator_sorted_list(
     size_t value_size,
     size_t values_count)
 {
-    auto mutex = reinterpret_cast<std::mutex *>(_trusted_memory + MUTEX_SHIFT);
+    auto trusted_memory = reinterpret_cast<unsigned char *>(_trusted_memory);
+    auto mutex = reinterpret_cast<std::mutex *>(trusted_memory + MUTEX_SHIFT);
     mutex->lock();
     auto blockSize = value_size * values_count;
-    void *res = nullptr;
     try {
-        switch (static_cast<int>(*(reinterpret_cast<allocator_with_fit_mode::fit_mode *>(_trusted_memory + FIT_MODE_SHIFT)))) {
+        switch (static_cast<int>(*(reinterpret_cast<allocator_with_fit_mode::fit_mode *>(trusted_memory + FIT_MODE_SHIFT)))) {
+            void *res = nullptr;
             case 0:
                 res = allocateFirstFit(blockSize);
                 mutex->unlock();
                 return res;
-                break;
             case 1:
                 res = allocateBestFit(blockSize);
                 mutex->unlock();
                 return res;
-                break;
             case 2:
                 res = allocateWorstFit(blockSize);
                 mutex->unlock();
                 return res;
-                break;
             default:
                 throw std::bad_alloc();
-                break;
         }
     }
     catch (std::bad_alloc const &e) {
@@ -235,13 +233,13 @@ void allocator_sorted_list::deallocate(
 inline void allocator_sorted_list::set_fit_mode(
     allocator_with_fit_mode::fit_mode mode)
 {
-    *(reinterpret_cast<allocator_with_fit_mode::fit_mode *>(_trusted_memory + FIT_MODE_SHIFT)) = mode;
+    *(reinterpret_cast<allocator_with_fit_mode::fit_mode *>(reinterpret_cast<unsigned char *>(_trusted_memory) + FIT_MODE_SHIFT)) = mode;
     //throw not_implemented("inline void allocator_sorted_list::set_fit_mode(allocator_with_fit_mode::fit_mode)", "your code should be here...");
 }
 
 inline allocator *allocator_sorted_list::get_allocator() const
 {
-    return *(reinterpret_cast<allocator **>(_trusted_memory + ALLOCATOR_SHIFT));
+    return *(reinterpret_cast<allocator **>(reinterpret_cast<unsigned char *>(_trusted_memory) + ALLOCATOR_SHIFT));
     //throw not_implemented("inline allocator *allocator_sorted_list::get_allocator() const", "your code should be here...");
 }
 
@@ -252,7 +250,7 @@ std::vector<allocator_test_utils::block_info> allocator_sorted_list::get_blocks_
 
 inline logger *allocator_sorted_list::get_logger() const
 {
-    return *(reinterpret_cast<logger **>(_trusted_memory + LOGGER_SHIFT));
+    return *(reinterpret_cast<logger **>(reinterpret_cast<unsigned char *>(_trusted_memory) + LOGGER_SHIFT));
     //throw not_implemented("inline logger *allocator_sorted_list::get_logger() const", "your code should be here...");
 }
 
