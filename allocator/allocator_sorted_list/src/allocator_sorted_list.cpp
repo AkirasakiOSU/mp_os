@@ -286,13 +286,13 @@ allocator_sorted_list::allocator_sorted_list(
 void allocator_sorted_list::deallocate(
     void *at){
     log_with_guard("deallocate() allocator_sorted_list", logger::severity::trace);
+    at = reinterpret_cast<void *>(reinterpret_cast<unsigned char *>(at) - getLocalMetaSize());
     if(*reinterpret_cast<void **>(at) != _trusted_memory) throw std::logic_error("Pointer is not contained in that allocator");
     auto firstFreeBlock = reinterpret_cast<void **>(reinterpret_cast<unsigned int *>(_trusted_memory) + getFirstFreeMemoryShift());
     // Если нет свободных блоков
     if(*firstFreeBlock == nullptr) {
-        auto localMeta = reinterpret_cast<void *>(reinterpret_cast<unsigned char *>(at) - getLocalMetaSize());
-        *firstFreeBlock = localMeta;
-        *reinterpret_cast<void **>(localMeta) = nullptr;
+        *firstFreeBlock = at;
+        *reinterpret_cast<void **>(at) = nullptr;
         log_with_guard("~deallocate() allocator_sorted_list", logger::severity::trace);
         return;
     }
