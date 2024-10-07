@@ -90,7 +90,8 @@ void *allocator_sorted_list::allocateFirstFit(size_t size) {
     auto trusted_memory = reinterpret_cast<unsigned char *>(_trusted_memory);
     void *pPrev, *pNow;
     auto sizeOfNewBlock = size + getLocalMetaSize();
-    pNow = *(reinterpret_cast<void **>(pPrev = reinterpret_cast<void *>(trusted_memory + getFirstFreeMemoryShift())));
+    pPrev = trusted_memory + getFirstFreeMemoryShift();
+    pNow = *reinterpret_cast<void **>(pPrev);
     while(pNow != nullptr) {
         auto sizeOfBlock = *(reinterpret_cast<size_t *>(reinterpret_cast<unsigned char *>(pNow) + getSizeOfBlockShift()));
         if(sizeOfBlock >= sizeOfNewBlock) {
@@ -109,7 +110,8 @@ void *allocator_sorted_list::allocateBestFit(size_t size) {
     std::pair<void *, void *> bestBlock;
     void *pNow, *pPrev;
     auto sizeOfNewBlock = size + getLocalMetaSize();
-    bestBlock.second = pNow = *(reinterpret_cast<void **>(bestBlock.first = pPrev = reinterpret_cast<void *>(trusted_memory + getFirstFreeMemoryShift())));
+    bestBlock.first = pPrev = trusted_memory + getFirstFreeMemoryShift();
+    bestBlock.second = pNow = *reinterpret_cast<void **>(pPrev);
     while(pNow != nullptr) {
         auto sizeOfBlock = *(reinterpret_cast<size_t *>(reinterpret_cast<unsigned char *>(pNow) + getSizeOfBlockShift()));
         if(sizeOfBlock == sizeOfNewBlock) return allocateFullBlock(pPrev, pNow);
@@ -146,7 +148,8 @@ void *allocator_sorted_list::allocateWorstFit(size_t size) {
     std::pair<void *, void *> worstBlock;
     void *pNow, *pPrev;
     auto sizeOfNewBlock = size + getLocalMetaSize();
-    worstBlock.second = pNow = *(reinterpret_cast<void **>(worstBlock.first = pPrev = reinterpret_cast<void *>(trusted_memory + getFirstFreeMemoryShift())));
+    worstBlock.first = pPrev = trusted_memory + getFirstFreeMemoryShift();
+    worstBlock.second = pNow = *reinterpret_cast<void **>(pPrev);
     while(pNow != nullptr) {
         auto sizeOfBlock = *(reinterpret_cast<size_t *>(reinterpret_cast<unsigned char *>(pNow) + getSizeOfBlockShift()));
         if(sizeOfBlock >= sizeOfNewBlock) {
@@ -286,9 +289,9 @@ allocator_sorted_list::allocator_sorted_list(
 void allocator_sorted_list::deallocate(
     void *at){
     log_with_guard("deallocate() allocator_sorted_list", logger::severity::trace);
-    at = reinterpret_cast<void *>(reinterpret_cast<unsigned char *>(at) - getLocalMetaSize());
+    at = reinterpret_cast<unsigned char *>(at) - getLocalMetaSize();
     if(*reinterpret_cast<void **>(at) != _trusted_memory) throw std::logic_error("Pointer is not contained in that allocator");
-    auto firstFreeBlock = reinterpret_cast<void **>(reinterpret_cast<unsigned int *>(_trusted_memory) + getFirstFreeMemoryShift());
+    void **firstFreeBlock = reinterpret_cast<void **>(reinterpret_cast<unsigned char *>(_trusted_memory) + getFirstFreeMemoryShift());
     // Если нет свободных блоков
     if(*firstFreeBlock == nullptr) {
         *firstFreeBlock = at;
@@ -297,7 +300,8 @@ void allocator_sorted_list::deallocate(
         return;
     }
     void *pPrev = firstFreeBlock, *pNow = *firstFreeBlock;
-    while(*reinterpret_cast<void **>(pNow) != nullptr) {
+    while(pNow != nullptr) {
+
         if(pPrev < at && pNow > at) {
             //Если нашли 2 блока между котороми находится занятый
             if(reinterpret_cast<unsigned char *>(pPrev) + *reinterpret_cast<size_t *>(reinterpret_cast<unsigned char *>(pPrev) + getSizeOfBlockShift()) == at) {
@@ -361,7 +365,18 @@ inline allocator *allocator_sorted_list::get_allocator() const
 
 std::vector<allocator_test_utils::block_info> allocator_sorted_list::get_blocks_info() const noexcept
 {
-    throw not_implemented("std::vector<allocator_test_utils::block_info> allocator_sorted_list::get_blocks_info() const noexcept", "your code should be here...");
+    std::vector<allocator_test_utils::block_info> res;
+    size_t sizeOfTrustedMemory = *reinterpret_cast<size_t *>(reinterpret_cast<unsigned char *>(_trusted_memory) + getTrustedMemorySizeShift());
+    void *pNow = _trusted_memory, *pLast = reinterpret_cast<unsigned char *>(pNow) + sizeOfTrustedMemory;
+    while(pNow < pLast) {
+        auto blockSize = *reinterpret_cast<size_t *>(reinterpret_cast<unsigned char *>(pNow) + getSizeOfBlockShift());
+        res.emplace_back();
+        res.end()->block_size = blockSize;
+        res.end()->is_block_occupied = *reinterpret_cast<void **>(pNow) == _trusted_memory;
+        pNow = reinterpret_cast<unsigned char *>(pNow) + blockSize;
+    }
+    return res;
+    //throw not_implemented("std::vector<allocator_test_utils::block_info> allocator_sorted_list::get_blocks_info() const noexcept", "your code should be here...");
 }
 
 inline logger *allocator_sorted_list::get_logger() const
