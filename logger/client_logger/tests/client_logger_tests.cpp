@@ -16,7 +16,7 @@ int main(
     b.add_output_format("[%t %d %s] %m");
     auto l2 = b.build();
     l2->log("crit1", logger::severity::critical);
-    _sleep(2000);
+    //_sleep(2000);
     l2->log("crit2", logger::severity::critical);
         /*->log("deb", logger::severity::debug)
         ->log("war", logger::severity::warning)#1#;

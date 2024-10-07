@@ -11,7 +11,7 @@ client_logger::stream::stream(std::string const &path) :
 {
     try {
         _str = new std::ofstream;
-        _str->open(path, std::ios::app);
+        _str->open(path);
         if(!_str->is_open()) {
             delete _str;
             _str = nullptr;
@@ -70,7 +70,8 @@ _severities(map),
 _outputFormat(outputFormat)
 {
     if(map.empty()) throw std::logic_error("map cant be empty");
-    if(outputFormat.empty()) throw std::logic_error("Format cant be empty");
+    if(outputFormat.empty()) _outputFormat = "[%t %d %s] %m";
+        //throw std::logic_error("Format cant be empty");
     auto iterPaths = map.begin();
     while(iterPaths != map.end()) {
         if(iterPaths->first == "cerr") {
