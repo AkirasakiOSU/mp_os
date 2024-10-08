@@ -119,6 +119,7 @@ void *allocator_sorted_list::allocateBestFit(size_t size) {
     auto sizeOfNewBlock = size + getLocalMetaSize();
     bestBlock.first = pPrev = trusted_memory + getFirstFreeMemoryShift();
     bestBlock.second = pNow = *reinterpret_cast<void **>(pPrev);
+    if(pNow == nullptr) throw std::bad_alloc();
     while(pNow != nullptr) {
         auto sizeOfBlock = *(reinterpret_cast<size_t *>(reinterpret_cast<unsigned char *>(pNow) + getSizeOfBlockShift()));
         if(sizeOfBlock == sizeOfNewBlock) return allocateFullBlock(pPrev, pNow);
@@ -157,6 +158,7 @@ void *allocator_sorted_list::allocateWorstFit(size_t size) {
     auto sizeOfNewBlock = size + getLocalMetaSize();
     worstBlock.first = pPrev = trusted_memory + getFirstFreeMemoryShift();
     worstBlock.second = pNow = *reinterpret_cast<void **>(pPrev);
+    if(pNow == nullptr) throw std::bad_alloc();
     while(pNow != nullptr) {
         auto sizeOfBlock = *(reinterpret_cast<size_t *>(reinterpret_cast<unsigned char *>(pNow) + getSizeOfBlockShift()));
         if(sizeOfBlock >= sizeOfNewBlock) {
