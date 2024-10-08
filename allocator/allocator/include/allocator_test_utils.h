@@ -15,7 +15,7 @@ public:
         size_t block_size;
         
         bool is_block_occupied;
-        
+        block_info(size_t, bool);
         bool operator==(
             block_info const &other) const noexcept;
         

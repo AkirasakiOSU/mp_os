@@ -38,7 +38,10 @@ class allocator_sorted_list final:
     static constexpr size_t getMutexShift();
     static constexpr size_t getFirstFreeMemoryShift();
     static constexpr size_t getFitModeShift();
+    static constexpr size_t getFirstByteOfTrustedMemory();
+
     static constexpr size_t getSizeOfBlockShift();
+    static constexpr size_t getFirstByteOfBlock();
 
 private:
     void *_trusted_memory;

@@ -262,6 +262,31 @@ TEST(allocatorSortedListNegativeTests, test1)
     delete logger;
 }
 
+void printInfo(allocator_sorted_list const &all) {
+    auto info = all.get_blocks_info();
+    for(auto i : info) {
+        std::cout << i.block_size << ' ' << i.is_block_occupied << std::endl;
+    }
+    std::cout << std::endl;
+}
+
+/*int main() {
+    client_logger_builder b;
+    b.add_file_stream("Test.txt", logger::severity::trace);
+    auto l = b.build();
+    allocator_sorted_list all(2000, nullptr, l, allocator_with_fit_mode::fit_mode::the_worst_fit);
+    printInfo(all);
+    void *p1 = all.allocate(1, 250);
+    void *p2 = all.allocate(1, 250);
+    void *p3 = all.allocate(1, 250);
+    all.deallocate(p2);
+    printInfo(all);
+    void *p4 = all.allocate(1, 242);
+    printInfo(all);
+    delete l;
+    return 0;
+}*/
+
 int main(
     int argc,
     char **argv)
