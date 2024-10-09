@@ -280,9 +280,11 @@ int main() {
     auto p2 = all.allocate(1, 400);
     auto p3 = all.allocate(1, 500);
     auto p4 = all.allocate(1, 400);
+    all.allocate(1, 120);
+    all.allocate(1, 0);
+    all.deallocate(p);
     all.deallocate(p2);
     all.deallocate(p3);
-    all.deallocate(p);
     all.deallocate(p4);
     printInfo(all);
     delete l;

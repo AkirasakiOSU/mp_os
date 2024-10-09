@@ -344,7 +344,7 @@ void allocator_sorted_list::deallocate(
         pNow = *reinterpret_cast<void **>(pNow);
     }
     //Получается наш новый блок будет в самом конце
-    if(reinterpret_cast<size_t *>(reinterpret_cast<unsigned char *>(pPrev) + getSizeOfBlockShift()) == at) {
+    if(reinterpret_cast<unsigned char *>(pPrev) + *reinterpret_cast<size_t *>(reinterpret_cast<unsigned char *>(pPrev) + getSizeOfBlockShift()) == at) {
         //Занятый блок находится сразу за свободным
         //Прибавляем к размеру полседнего размер занятого -> объединяем их
         *reinterpret_cast<size_t *>(reinterpret_cast<unsigned char *>(pPrev) + getSizeOfBlockShift()) += *reinterpret_cast<size_t *>(reinterpret_cast<unsigned char *>(at) + getSizeOfBlockShift());
