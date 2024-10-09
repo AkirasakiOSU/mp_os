@@ -270,28 +270,30 @@ void printInfo(allocator_sorted_list const &all) {
     std::cout << std::endl;
 }
 
-/*int main() {
+int main() {
     client_logger_builder b;
     b.add_file_stream("Test.txt", logger::severity::trace);
     auto l = b.build();
-    allocator_sorted_list all(2000, nullptr, l, allocator_with_fit_mode::fit_mode::the_worst_fit);
+    allocator_sorted_list all(2000, nullptr, l, allocator_with_fit_mode::fit_mode::first_fit);
     printInfo(all);
-    void *p1 = all.allocate(1, 250);
-    void *p2 = all.allocate(1, 250);
-    void *p3 = all.allocate(1, 250);
+    auto p = all.allocate(1, 500);
+    auto p2 = all.allocate(1, 400);
+    auto p3 = all.allocate(1, 500);
+    auto p4 = all.allocate(1, 400);
     all.deallocate(p2);
-    printInfo(all);
-    void *p4 = all.allocate(1, 242);
+    all.deallocate(p3);
+    all.deallocate(p);
+    all.deallocate(p4);
     printInfo(all);
     delete l;
     return 0;
-}*/
+}
 
-int main(
+/*int main(
     int argc,
     char **argv)
 {
     testing::InitGoogleTest(&argc, argv);
     
     return RUN_ALL_TESTS();
-}
+}*/
