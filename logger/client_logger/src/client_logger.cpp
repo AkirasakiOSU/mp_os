@@ -231,10 +231,7 @@ logger const *client_logger::log(
             auto &target_stream = _streams.find(iterSev->first)->second;
             target_stream << getOutputString(text, severity) << std::endl;
             target_stream._str->flush();
-            //_streams.find(iterSev->first)->second._str->flush();
-            //*((_streams.find(iterSev->first))->second._str) << 's' << std::endl;
-            // *((_streams.find(iterSev->first))->second._str) << getOutputString(text, severity) << std::endl;
-        }
+            }
         ++iterSev;
     }
     return this;
