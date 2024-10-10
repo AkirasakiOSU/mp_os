@@ -18,18 +18,6 @@ class allocator_sorted_list final:
     private typename_holder
 {
 
-//#define GLOBAL_META_SIZE sizeof(allocator *) + sizeof(logger *) + sizeof(std::mutex *) + sizeof(void *) + sizeof(allocator_with_fit_mode::fit_mode) + sizeof(size_t)
-//#define LOCAL_META_SIZE sizeof(size_t) + sizeof(void *)
-//
-//#define TRUSTED_MEMORY_SIZE_SHIFT 0
-//#define ALLOCATOR_SHIFT sizeof(size_t)
-//#define LOGGER_SHIFT (ALLOCATOR_SHIFT + sizeof(allocator *))
-//#define MUTEX_SHIFT (LOGGER_SHIFT + sizeof(logger *))
-//#define FIRST_FREE_MEMORY_SHIFT (MUTEX_SHIFT + sizeof(std::mutex *))
-//#define FIT_MODE_SHIFT (FIRST_FREE_MEMORY_SHIFT + sizeof(void *))
-//
-//#define SIZE_OF_BLOCK_SHIFT sizeof(void *)
-
     static constexpr size_t getGlobalMetaSize();
     static constexpr size_t getLocalMetaSize();
     static constexpr size_t getTrustedMemorySizeShift();
@@ -42,6 +30,10 @@ class allocator_sorted_list final:
 
     static constexpr size_t getSizeOfBlockShift();
     static constexpr size_t getFirstByteOfBlock();
+
+    size_t getFreeMemorySize() const;
+    void logBlockСondition(void *) const;
+    void logTrustedMemoryCondition() const;
 
 private:
     void *_trusted_memory;

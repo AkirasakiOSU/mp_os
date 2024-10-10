@@ -272,13 +272,18 @@ void printInfo(allocator_sorted_list const &all) {
 
 int main() {
     client_logger_builder b;
-    b.add_file_stream("Test.txt", logger::severity::trace);
+    b.add_file_stream("trace.txt", logger::severity::trace);
+    b.add_file_stream("debug.txt", logger::severity::debug);
+    b.add_file_stream("information.txt", logger::severity::information);
+    b.add_file_stream("error.txt", logger::severity::error);
+    b.add_file_stream("warning.txt", logger::severity::warning);
     auto l = b.build();
     allocator_sorted_list all(2000, nullptr, l, allocator_with_fit_mode::fit_mode::first_fit);
     printInfo(all);
     auto p = all.allocate(1, 500);
     auto p2 = all.allocate(1, 400);
     auto p3 = all.allocate(1, 500);
+    *reinterpret_cast<char *>(p3) = 42;
     auto p4 = all.allocate(1, 400);
     all.allocate(1, 120);
     all.allocate(1, 0);
