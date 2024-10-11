@@ -6,7 +6,7 @@
 #include <allocator_with_fit_mode.h>
 #include <logger_guardant.h>
 #include <typename_holder.h>
-
+using byte = unsigned char;
 class allocator_boundary_tags final:
     private allocator_guardant,
     public allocator_test_utils,
@@ -15,6 +15,22 @@ class allocator_boundary_tags final:
     private typename_holder
 {
 
+    static constexpr size_t getGlobalMetaSize();
+    static constexpr size_t getLocalMetaSize();
+
+    static constexpr size_t getSizeOfTrustedMemoryShift();
+    static constexpr size_t getLoggerShift();
+    static constexpr size_t getAllocatorShift();
+    static constexpr size_t getFitModeShift();
+    static constexpr size_t getMutexShift();
+    static constexpr size_t getFirstBlockShift();
+
+    static constexpr size_t getStatusOfBlockShift();
+    static constexpr size_t getSizeOfBlockShift();
+
+    static void initializationOfLocalMeta(byte *, size_t, bool);
+
+    void freeMemory();
 private:
     
     void *_trusted_memory;
@@ -24,10 +40,10 @@ public:
     ~allocator_boundary_tags() override;
     
     allocator_boundary_tags(
-        allocator_boundary_tags const &other);
+        allocator_boundary_tags const &other) = delete;
     
     allocator_boundary_tags &operator=(
-        allocator_boundary_tags const &other);
+        allocator_boundary_tags const &other) = delete;
     
     allocator_boundary_tags(
         allocator_boundary_tags &&other) noexcept;
