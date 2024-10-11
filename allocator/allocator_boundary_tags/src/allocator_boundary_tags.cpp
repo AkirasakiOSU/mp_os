@@ -145,7 +145,12 @@ std::vector<allocator_test_utils::block_info> allocator_boundary_tags::get_block
 {
     std::vector<allocator_test_utils::block_info> result;
     if(_trusted_memory == nullptr) return result;
-    byte *pNow = reinterpret_cast<byte *>(_trusted_memory) + getFirstBlockShift();
+    byte *pNow = reinterpret_cast<byte *>(_trusted_memory) + getFirstBlockShift(), *pLast = reinterpret_cast<byte *>(_trusted_memory) + *reinterpret_cast<size_t *>(reinterpret_cast<byte *>(_trusted_memory) + getSizeOfTrustedMemoryShift());
+    while(reinterpret_cast<void *>(pNow) < reinterpret_cast<void *>(pLast)) {
+        result.emplace_back(*reinterpret_cast<size_t *>(pNow + getSizeOfBlockShift()), *reinterpret_cast<bool *>(pNow + getStatusOfBlockShift()));
+        pNow += *reinterpret_cast<size_t *>(pNow + getSizeOfBlockShift());
+    }
+    return result;
     //throw not_implemented("std::vector<allocator_test_utils::block_info> allocator_boundary_tags::get_blocks_info() const noexcept", "your code should be here...");
 }
 

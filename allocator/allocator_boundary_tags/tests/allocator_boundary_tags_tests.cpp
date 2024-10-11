@@ -5,7 +5,7 @@
 #include <logger.h>
 #include <logger_builder.h>
 
-logger *create_logger(
+/*logger *create_logger(
     std::vector<std::pair<std::string, logger::severity>> const &output_file_streams_setup,
     bool use_console_stream = true,
     logger::severity console_stream_severity = logger::severity::debug)
@@ -118,13 +118,27 @@ TEST(falsePositiveTests, test1)
     
     delete allocator_instance;
     delete logger_instance;
+}*/
+
+void printInfo(allocator_boundary_tags const &all) {
+    auto info = all.get_blocks_info();
+    for(auto i : info) {
+        std::cout << i.block_size << ' ' << i.is_block_occupied << std::endl;
+    }
+    std::cout << std::endl;
 }
 
-int main(
+int main() {
+    allocator_boundary_tags all(1000);
+    printInfo(all);
+    return 0;
+}
+
+/*int main(
     int argc,
     char *argv[])
 {
     testing::InitGoogleTest(&argc, argv);
     
     return RUN_ALL_TESTS();
-}
+}*/
