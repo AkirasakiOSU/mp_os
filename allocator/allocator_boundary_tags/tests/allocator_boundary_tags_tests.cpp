@@ -129,7 +129,10 @@ void printInfo(allocator_boundary_tags const &all) {
 }
 
 int main() {
-    allocator_boundary_tags all(1000);
+    allocator_boundary_tags all(1000, nullptr, nullptr, allocator_boundary_tags::fit_mode::the_worst_fit);
+    all.allocate(1, 200);
+    all.allocate(1, 200);
+    all.allocate(1, 200);
     printInfo(all);
     return 0;
 }

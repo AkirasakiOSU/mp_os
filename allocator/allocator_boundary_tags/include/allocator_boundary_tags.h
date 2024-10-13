@@ -31,6 +31,15 @@ class allocator_boundary_tags final:
     static void initializationOfLocalMeta(byte *, size_t, bool);
 
     void freeMemory();
+
+    void *allocateFirstFit(size_t);
+    void *allocateBestFit(size_t);
+    void *allocateWorstFit(size_t);
+
+    static void *allocateBlock(void *, size_t);
+    static void *allocateFullBlock(void *);
+
+    byte *findFirstFreeBlock(size_t) const;
 private:
     
     void *_trusted_memory;

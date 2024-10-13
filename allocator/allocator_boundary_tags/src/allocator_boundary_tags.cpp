@@ -56,6 +56,90 @@ void allocator_boundary_tags::freeMemory() {
     else get_allocator()->deallocate(_trusted_memory);
 }
 
+void *allocator_boundary_tags::allocateFirstFit(size_t sizeOfNewBlock) {
+    byte *curentBlock = reinterpret_cast<byte *>(_trusted_memory) + getFirstBlockShift(),
+         *lastPtr = reinterpret_cast<byte *>(_trusted_memory) + *reinterpret_cast<size_t *>(reinterpret_cast<byte *>(_trusted_memory) + getSizeOfTrustedMemoryShift());
+    while(curentBlock < lastPtr) {
+        auto sizeOfBlock = *reinterpret_cast<size_t *>(curentBlock + getSizeOfBlockShift());
+        if(!*reinterpret_cast<bool *>(curentBlock + getStatusOfBlockShift())) {
+            if(sizeOfBlock == sizeOfNewBlock) return allocateFullBlock(curentBlock);
+            if(sizeOfBlock > sizeOfNewBlock) return allocateBlock(curentBlock, sizeOfNewBlock);
+        }
+        curentBlock += sizeOfBlock;
+    }
+    throw std::bad_alloc();
+}
+
+void *allocator_boundary_tags::allocateBestFit(size_t sizeOfBlock) {
+    byte *bestBlock = findFirstFreeBlock(sizeOfBlock),
+    *currentBlock = reinterpret_cast<byte *>(_trusted_memory) + getFirstBlockShift(),
+    *pLast = reinterpret_cast<byte *>(_trusted_memory) + *reinterpret_cast<size_t *>(reinterpret_cast<byte *>(_trusted_memory) + getSizeOfTrustedMemoryShift());
+    if(bestBlock == nullptr) throw std::bad_alloc();
+    if(*reinterpret_cast<size_t *>(bestBlock + getSizeOfBlockShift()) == sizeOfBlock) return allocateFullBlock(bestBlock);
+    while(currentBlock < pLast) {
+        if(!*reinterpret_cast<bool *>(currentBlock + getStatusOfBlockShift())) {
+            if(*reinterpret_cast<size_t *>(bestBlock + getSizeOfBlockShift()) > *reinterpret_cast<size_t *>(currentBlock + getSizeOfBlockShift())) bestBlock = currentBlock;
+        }
+        currentBlock += *reinterpret_cast<size_t *>(currentBlock + getSizeOfBlockShift());
+    }
+    return allocateBlock(bestBlock, sizeOfBlock);
+}
+
+void *allocator_boundary_tags::allocateWorstFit(size_t sizeOfBlock) {
+    byte *bestBlock = findFirstFreeBlock(sizeOfBlock),
+    *currentBlock = reinterpret_cast<byte *>(_trusted_memory) + getFirstBlockShift(),
+    *pLast = reinterpret_cast<byte *>(_trusted_memory) + *reinterpret_cast<size_t *>(reinterpret_cast<byte *>(_trusted_memory) + getSizeOfTrustedMemoryShift());
+    if(bestBlock == nullptr) throw std::bad_alloc();
+    if(*reinterpret_cast<size_t *>(bestBlock + getSizeOfBlockShift()) == sizeOfBlock) return allocateFullBlock(bestBlock);
+    while(currentBlock < pLast) {
+        if(!*reinterpret_cast<bool *>(currentBlock + getStatusOfBlockShift())) {
+            if(*reinterpret_cast<size_t *>(bestBlock + getSizeOfBlockShift()) < *reinterpret_cast<size_t *>(currentBlock + getSizeOfBlockShift())) bestBlock = currentBlock;
+        }
+        currentBlock += *reinterpret_cast<size_t *>(currentBlock + getSizeOfBlockShift());
+    }
+    return allocateBlock(bestBlock, sizeOfBlock);
+}
+
+void *allocator_boundary_tags::allocateBlock(void *block, size_t sizeOfNewBlock) {
+    byte *pBlock = reinterpret_cast<byte *>(block);
+    auto minSizeOfBlock = 2 * getLocalMetaSize(),
+    sizeOfBlock = *reinterpret_cast<size_t *>(pBlock + getSizeOfBlockShift());
+    if(sizeOfBlock - sizeOfNewBlock < minSizeOfBlock) return allocateFullBlock(block);
+    *reinterpret_cast<bool *>(pBlock + getStatusOfBlockShift()) = true;
+    *reinterpret_cast<size_t *>(pBlock + getSizeOfBlockShift()) = sizeOfNewBlock;
+    auto resultPtr = pBlock + getLocalMetaSize();
+    pBlock += sizeOfNewBlock;
+    *reinterpret_cast<bool *>((pBlock - getLocalMetaSize()) + getStatusOfBlockShift()) = true;
+    *reinterpret_cast<size_t *>((pBlock - getLocalMetaSize()) + getSizeOfBlockShift()) = sizeOfNewBlock;
+
+    *reinterpret_cast<bool *>(pBlock + getStatusOfBlockShift()) = false;
+    *reinterpret_cast<size_t *>(pBlock + getSizeOfBlockShift()) = sizeOfBlock - sizeOfNewBlock;
+    pBlock += sizeOfBlock - sizeOfNewBlock - getLocalMetaSize();
+    *reinterpret_cast<bool *>(pBlock + getStatusOfBlockShift()) = false;
+    *reinterpret_cast<size_t *>(pBlock + getSizeOfBlockShift()) = sizeOfBlock - sizeOfNewBlock;
+    return resultPtr;
+}
+
+void *allocator_boundary_tags::allocateFullBlock(void *block) {
+    byte *pBlock = reinterpret_cast<byte *>(block);
+    *reinterpret_cast<bool *>(pBlock + getStatusOfBlockShift()) = true;
+    auto secondMeta = pBlock + *reinterpret_cast<size_t *>(pBlock + getSizeOfBlockShift()) - getLocalMetaSize();
+    *reinterpret_cast<bool *>(secondMeta + getStatusOfBlockShift()) = true;
+    return pBlock + getLocalMetaSize();
+}
+
+byte *allocator_boundary_tags::findFirstFreeBlock(size_t sizeOfBlock) const {
+    byte *currentBlock = reinterpret_cast<byte *>(_trusted_memory) + getFirstBlockShift(),
+    *pLast = reinterpret_cast<byte *>(_trusted_memory) + *reinterpret_cast<size_t *>(reinterpret_cast<byte *>(_trusted_memory) + getSizeOfTrustedMemoryShift());
+    while(currentBlock < pLast) {
+        if(!*reinterpret_cast<bool *>(currentBlock + getStatusOfBlockShift())) {
+            if(*reinterpret_cast<size_t *>(currentBlock + getSizeOfBlockShift()) >= sizeOfBlock) return currentBlock;
+        }
+        currentBlock += *reinterpret_cast<size_t *>(currentBlock + getSizeOfBlockShift());
+    }
+    return nullptr;
+}
+
 allocator_boundary_tags::~allocator_boundary_tags()
 {
     freeMemory();
@@ -117,7 +201,27 @@ allocator_boundary_tags::allocator_boundary_tags(
     size_t value_size,
     size_t values_count)
 {
-    throw not_implemented("[[nodiscard]] void *allocator_boundary_tags::allocate(size_t, size_t)", "your code should be here...");
+    if(_trusted_memory == nullptr) throw std::bad_alloc();
+    auto sizeOfNewBlock = (value_size * values_count) + (2 * getLocalMetaSize());
+    auto fitMode = reinterpret_cast<allocator_with_fit_mode::fit_mode *>(reinterpret_cast<byte *>(_trusted_memory) + getFitModeShift());
+    try {
+        switch(static_cast<int>(*fitMode)) {
+            case 0:
+                return allocateFirstFit(sizeOfNewBlock);
+            case 1:
+                return allocateBestFit(sizeOfNewBlock);
+            case 2:
+                return allocateWorstFit(sizeOfNewBlock);
+            default:
+                throw std::bad_alloc();
+        }
+    }
+    catch (std::bad_alloc const &e) {
+        error_with_guard(e.what());
+        throw e;
+    }
+    throw std::bad_alloc();
+    //throw not_implemented("[[nodiscard]] void *allocator_boundary_tags::allocate(size_t, size_t)", "your code should be here...");
 }
 
 void allocator_boundary_tags::deallocate(
