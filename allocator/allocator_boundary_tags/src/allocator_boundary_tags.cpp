@@ -9,7 +9,7 @@ constexpr size_t allocator_boundary_tags::getGlobalMetaSize() {
 }
 
 constexpr size_t allocator_boundary_tags::getLocalMetaSize() {
-    return sizeof(bool) + sizeof(size_t);
+    return sizeof(bool) + sizeof(size_t) + sizeof(void *);
 }
 
 constexpr size_t allocator_boundary_tags::getSizeOfTrustedMemoryShift() {
@@ -36,8 +36,12 @@ constexpr size_t allocator_boundary_tags::getFirstBlockShift() {
     return getMutexShift() + sizeof(std::mutex);
 }
 
-constexpr size_t allocator_boundary_tags::getStatusOfBlockShift() {
+constexpr size_t allocator_boundary_tags::getTrustedMemoryPtrShift() {
     return 0;
+}
+
+constexpr size_t allocator_boundary_tags::getStatusOfBlockShift() {
+    return sizeof(void *);
 }
 
 constexpr size_t allocator_boundary_tags::getSizeOfBlockShift() {
@@ -45,6 +49,7 @@ constexpr size_t allocator_boundary_tags::getSizeOfBlockShift() {
 }
 
 void allocator_boundary_tags::initializationOfLocalMeta(byte *ptr, size_t sizeOfBlock, bool statusOfBlock) {
+    *reinterpret_cast<void **>(ptr + getTrustedMemoryPtrShift()) = _trusted_memory;
     *reinterpret_cast<bool *>(ptr + getStatusOfBlockShift()) = statusOfBlock;
     *reinterpret_cast<size_t *>(ptr + getSizeOfBlockShift()) = sizeOfBlock;
 }
@@ -105,16 +110,20 @@ void *allocator_boundary_tags::allocateBlock(void *block, size_t sizeOfNewBlock)
     auto minSizeOfBlock = 2 * getLocalMetaSize(),
     sizeOfBlock = *reinterpret_cast<size_t *>(pBlock + getSizeOfBlockShift());
     if(sizeOfBlock - sizeOfNewBlock < minSizeOfBlock) return allocateFullBlock(block);
+    *reinterpret_cast<void **>(pBlock + getTrustedMemoryPtrShift()) = _trusted_memory;
     *reinterpret_cast<bool *>(pBlock + getStatusOfBlockShift()) = true;
     *reinterpret_cast<size_t *>(pBlock + getSizeOfBlockShift()) = sizeOfNewBlock;
     auto resultPtr = pBlock + getLocalMetaSize();
     pBlock += sizeOfNewBlock;
+    *reinterpret_cast<void **>((pBlock - getLocalMetaSize()) + getTrustedMemoryPtrShift()) = _trusted_memory;
     *reinterpret_cast<bool *>((pBlock - getLocalMetaSize()) + getStatusOfBlockShift()) = true;
     *reinterpret_cast<size_t *>((pBlock - getLocalMetaSize()) + getSizeOfBlockShift()) = sizeOfNewBlock;
 
+    *reinterpret_cast<void **>(pBlock + getTrustedMemoryPtrShift()) = _trusted_memory;
     *reinterpret_cast<bool *>(pBlock + getStatusOfBlockShift()) = false;
     *reinterpret_cast<size_t *>(pBlock + getSizeOfBlockShift()) = sizeOfBlock - sizeOfNewBlock;
     pBlock += sizeOfBlock - sizeOfNewBlock - getLocalMetaSize();
+    *reinterpret_cast<void **>(pBlock + getTrustedMemoryPtrShift()) = _trusted_memory;
     *reinterpret_cast<bool *>(pBlock + getStatusOfBlockShift()) = false;
     *reinterpret_cast<size_t *>(pBlock + getSizeOfBlockShift()) = sizeOfBlock - sizeOfNewBlock;
     return resultPtr;
@@ -227,7 +236,26 @@ allocator_boundary_tags::allocator_boundary_tags(
 void allocator_boundary_tags::deallocate(
     void *at)
 {
-    throw not_implemented("void allocator_boundary_tags::deallocate(void *)", "your code should be here...");
+    if(_trusted_memory == nullptr) throw std::logic_error("Allocator is empty");
+    at = reinterpret_cast<byte *>(at) - getLocalMetaSize();
+    if(*reinterpret_cast<void **>(reinterpret_cast<byte *>(at) + getTrustedMemoryPtrShift()) != _trusted_memory) throw std::logic_error("Pointer is not contained in that allocator");
+    auto sizeOfAt = *reinterpret_cast<size_t *>(reinterpret_cast<byte *>(at) + getSizeOfBlockShift());
+    if(!*reinterpret_cast<bool *>(reinterpret_cast<byte *>(at) - getLocalMetaSize() + getStatusOfBlockShift()) && at != reinterpret_cast<byte *>(_trusted_memory) + getFirstBlockShift()) {
+        //Перед новым стоит свободный
+        *reinterpret_cast<size_t *>(reinterpret_cast<byte *>(at) + sizeOfAt - getLocalMetaSize() + getSizeOfBlockShift()) += sizeOfAt;
+        *reinterpret_cast<bool *>(reinterpret_cast<byte *>(at) + sizeOfAt - getLocalMetaSize() + getStatusOfBlockShift()) = false;
+        at = reinterpret_cast<byte *>(at) - *reinterpret_cast<size_t *>(reinterpret_cast<byte *>(at) - getLocalMetaSize() + getSizeOfBlockShift());
+        sizeOfAt = *reinterpret_cast<size_t *>(reinterpret_cast<byte *>(at) + getSizeOfBlockShift()) += sizeOfAt;
+    } else {
+        *reinterpret_cast<bool *>(reinterpret_cast<byte *>(at) + getStatusOfBlockShift()) = false;
+        *reinterpret_cast<bool *>(reinterpret_cast<byte *>(at) + sizeOfAt - getLocalMetaSize() + getStatusOfBlockShift()) = false;
+    }
+    if(!*reinterpret_cast<bool *>(reinterpret_cast<byte *>(at) + sizeOfAt + getStatusOfBlockShift()) && (reinterpret_cast<byte *>(at) + sizeOfAt) != (reinterpret_cast<byte *>(_trusted_memory) + *reinterpret_cast<size_t *>(reinterpret_cast<byte *>(_trusted_memory) + getSizeOfTrustedMemoryShift()))) {
+        //За новым стоит свободный
+        *reinterpret_cast<size_t *>(reinterpret_cast<byte *>(at) + getSizeOfBlockShift()) += *reinterpret_cast<size_t *>(reinterpret_cast<byte *>(at) + sizeOfAt + getSizeOfBlockShift());
+        *reinterpret_cast<size_t *>(reinterpret_cast<byte *>(at) + *reinterpret_cast<size_t *>(reinterpret_cast<byte *>(at) + getSizeOfBlockShift()) - getLocalMetaSize() + getSizeOfBlockShift()) = *reinterpret_cast<size_t *>(reinterpret_cast<byte *>(at) + getSizeOfBlockShift());
+    }
+    //throw not_implemented("void allocator_boundary_tags::deallocate(void *)", "your code should be here...");
 }
 
 inline void allocator_boundary_tags::set_fit_mode(

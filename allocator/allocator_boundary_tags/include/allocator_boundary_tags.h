@@ -27,8 +27,9 @@ class allocator_boundary_tags final:
 
     static constexpr size_t getStatusOfBlockShift();
     static constexpr size_t getSizeOfBlockShift();
+    static constexpr size_t getTrustedMemoryPtrShift();
 
-    static void initializationOfLocalMeta(byte *, size_t, bool);
+    void initializationOfLocalMeta(byte *, size_t, bool);
 
     void freeMemory();
 
@@ -36,8 +37,8 @@ class allocator_boundary_tags final:
     void *allocateBestFit(size_t);
     void *allocateWorstFit(size_t);
 
-    static void *allocateBlock(void *, size_t);
-    static void *allocateFullBlock(void *);
+    void *allocateBlock(void *, size_t);
+    void *allocateFullBlock(void *);
 
     byte *findFirstFreeBlock(size_t) const;
 private:
