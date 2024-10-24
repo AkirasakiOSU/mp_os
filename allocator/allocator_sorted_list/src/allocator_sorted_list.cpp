@@ -4,6 +4,8 @@
 
 #include <complex>
 
+#include "../../allocator_boundary_tags/include/allocator_boundary_tags.h"
+
 using bytePtr = unsigned char *;
 
 constexpr size_t allocator_sorted_list::getGlobalMetaSize() {
@@ -258,11 +260,10 @@ allocator_sorted_list &allocator_sorted_list::operator=(
 {
     other.debug_with_guard("Вход в оператор перемещения");
     if(this != &other) {
-        reinterpret_cast<std::mutex *>(reinterpret_cast<bytePtr>(other._trusted_memory) + getMutexShift()) -> lock();
+        std::lock_guard<std::mutex> locker(*reinterpret_cast<std::mutex *>(reinterpret_cast<bytePtr>(other._trusted_memory) + getMutexShift()));
         freeMemory();
         _trusted_memory = other._trusted_memory;
         other._trusted_memory = nullptr;
-        reinterpret_cast<std::mutex *>(reinterpret_cast<bytePtr>(other._trusted_memory) + getMutexShift()) -> unlock();
     }
     other.debug_with_guard("Выход из оператора перемещения");
     return *this;
@@ -287,11 +288,11 @@ allocator_sorted_list::allocator_sorted_list(
         error_with_guard(e.what() + std::string(" in allocator_sorted_list()"));
         throw e;
     }
-    debug_with_guard(std::string("Вход в констректор, желаемый размер пространства: ") + std::to_string(space_size));
     auto trusted_memory = reinterpret_cast<bytePtr>(_trusted_memory);
     *(reinterpret_cast<size_t *>(trusted_memory + getTrustedMemorySizeShift())) = space_size + getGlobalMetaSize() + getLocalMetaSize();
     *(reinterpret_cast<allocator **>(trusted_memory + getAllocatorShift())) = parent_allocator;
     *(reinterpret_cast<logger **>(trusted_memory + getLoggerShift())) = loger;
+    debug_with_guard(std::string("Вход в констректор, желаемый размер пространства: ") + std::to_string(space_size));
     new(reinterpret_cast<std::mutex *>(trusted_memory + getMutexShift())) std::mutex();
     *(reinterpret_cast<void **>(trusted_memory + getFirstFreeMemoryShift())) = reinterpret_cast<void *>(trusted_memory + getFirstByteOfTrustedMemory());
     *(reinterpret_cast<allocator_with_fit_mode::fit_mode *>(trusted_memory + getFitModeShift())) = allocate_fit_mode;
@@ -310,7 +311,7 @@ allocator_sorted_list::allocator_sorted_list(
     if(_trusted_memory == nullptr) throw std::bad_alloc();
     auto trusted_memory = reinterpret_cast<bytePtr>(_trusted_memory);
     auto mutex = reinterpret_cast<std::mutex *>(trusted_memory + getMutexShift());
-    mutex->lock();
+    std::lock_guard<std::mutex> locker(*mutex);
     auto blockSize = value_size * values_count;
     try {
         void *res = nullptr;
@@ -318,21 +319,18 @@ allocator_sorted_list::allocator_sorted_list(
         switch (static_cast<int>(*fitMode)) {
             case 0:
                 res = allocateFirstFit(blockSize);
-                mutex->unlock();
                 debug_with_guard("Выход из allocate");
                 logTrustedMemoryCondition();
                 information_with_guard(std::string("Выполнено выделение памяти (firstFit), размер совбодной памяти состовляет ") + std::to_string(getFreeMemorySize()));
                 return res;
             case 1:
                 res = allocateBestFit(blockSize);
-                mutex->unlock();
                 debug_with_guard("Выход из allocate");
                 logTrustedMemoryCondition();
                 information_with_guard(std::string("Выполнено выделение памяти (bestFit), размер совбодной памяти состовляет ") + std::to_string(getFreeMemorySize()));
                 return res;
             case 2:
                 res = allocateWorstFit(blockSize);
-                mutex->unlock();
                 debug_with_guard("Выход из allocate");
                 logTrustedMemoryCondition();
                 information_with_guard(std::string("Выполнено выделение памяти (worstFit), размер совбодной памяти состовляет ") + std::to_string(getFreeMemorySize()));
@@ -342,12 +340,10 @@ allocator_sorted_list::allocator_sorted_list(
         }
     }
     catch (std::bad_alloc const &e) {
-        mutex->unlock();
         debug_with_guard("Выход из allocate");
         error_with_guard(e.what() + std::string(" in allocate"));
         throw e;
     }
-    mutex->unlock();
     //throw not_implemented("[[nodiscard]] void *allocator_sorted_list::allocate(size_t, size_t)", "your code should be here...");
 }
 
@@ -355,6 +351,11 @@ void allocator_sorted_list::deallocate(
     void *at){
     debug_with_guard("Вход в deallocate");
     if(_trusted_memory == nullptr) throw std::logic_error("Allocator is empty");
+    if(at == nullptr) return;
+    if(at < reinterpret_cast<bytePtr>(_trusted_memory) + getGlobalMetaSize() ||
+        at > reinterpret_cast<bytePtr>(_trusted_memory) + *reinterpret_cast<size_t *>(reinterpret_cast<bytePtr>(_trusted_memory) + getTrustedMemorySizeShift()))
+        throw std::logic_error("Ptr is not contained in trusted memory");
+    std::lock_guard<std::mutex> locker(*reinterpret_cast<std::mutex *>(reinterpret_cast<bytePtr>(_trusted_memory) + getMutexShift()));
     at = reinterpret_cast<bytePtr>(at) - getFirstByteOfBlock();
     if(*reinterpret_cast<void **>(at) != _trusted_memory) throw std::logic_error("Pointer is not contained in that allocator");
     logBlockСondition(at);
@@ -428,6 +429,7 @@ inline void allocator_sorted_list::set_fit_mode(
     allocator_with_fit_mode::fit_mode mode)
 {
     debug_with_guard("Вход в set_fit_mode");
+    std::lock_guard<std::mutex> locker(*reinterpret_cast<std::mutex *>(reinterpret_cast<bytePtr>(_trusted_memory) + getMutexShift()));
     if(_trusted_memory == nullptr) throw std::logic_error("Allocator is empty");
     *(reinterpret_cast<allocator_with_fit_mode::fit_mode *>(reinterpret_cast<bytePtr>(_trusted_memory) + getFitModeShift())) = mode;
     debug_with_guard("Выход из set_fit_mode");
