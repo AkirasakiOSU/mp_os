@@ -13,6 +13,8 @@ private:
     std::map<std::string, unsigned char> files;
     std::string _outputFormat;
 
+
+    static inline logger::severity severityStringToSeverity(std::string const &);
 public:
 
     client_logger_builder();
