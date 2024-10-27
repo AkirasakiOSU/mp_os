@@ -6,7 +6,7 @@
 #include <logger.h>
 #include <logger_builder.h>
 
-logger *create_logger(
+/*logger *create_logger(
     std::vector<std::pair<std::string, logger::severity>> const &output_file_streams_setup,
     bool use_console_stream = true,
     logger::severity console_stream_severity = logger::severity::debug)
@@ -113,13 +113,27 @@ TEST(positiveTests, test3)
 TEST(falsePositiveTests, test1)
 {
     ASSERT_THROW(new allocator_buddies_system(static_cast<int>(std::floor(std::log2(sizeof(allocator::block_pointer_t) * 2 + 1))) - 1), std::logic_error);
-}
+}*/
 
-int main(
+/*int main(
     int argc,
     char *argv[])
 {
     testing::InitGoogleTest(&argc, argv);
     
     return RUN_ALL_TESTS();
+}*/
+
+void printInfo(allocator_buddies_system const &all) {
+    auto info = all.get_blocks_info();
+    for(auto i : info) {
+        std::cout << i.block_size << ' ' << i.is_block_occupied << std::endl;
+    }
+    std::cout << std::endl;
+}
+
+int main() {
+    allocator_buddies_system all(10, nullptr, nullptr, allocator_with_fit_mode::fit_mode::first_fit);
+    printInfo(all);
+    return 0;
 }

@@ -7,6 +7,8 @@
 #include <logger_guardant.h>
 #include <typename_holder.h>
 
+using byte = unsigned char;
+
 class allocator_buddies_system final:
     private allocator_guardant,
     public allocator_test_utils,
@@ -18,6 +20,30 @@ class allocator_buddies_system final:
 private:
     
     void *_trusted_memory;
+
+    static constexpr size_t getGlobalMetaSize();
+    static constexpr size_t getFreeBlockMetaSize();
+    static constexpr size_t getOcupiedBlockMetaSize();
+
+    static constexpr size_t getSizeOfTrustedMemoryShift();
+    static constexpr size_t getAllocatorShift();
+    static constexpr size_t getLoggerShift();
+    static constexpr size_t getFirstFreeBlockShift();
+    static constexpr size_t getFitModeShift();
+    static constexpr size_t getMutexShift();
+
+    static constexpr size_t getPPrevShift();
+    static constexpr size_t getPNextShift();
+    static constexpr size_t getSizeOfFreeBlockShift();
+
+    static constexpr size_t getTMPointerShift();
+    static constexpr size_t getSizeOfOcupiedBlockShift();
+
+    void freeMemory();
+
+    void *allocateFirstFit(size_t);
+    void *allocateBestFit(size_t);
+    void *allocateWorstFit(size_t);
 
 public:
     
