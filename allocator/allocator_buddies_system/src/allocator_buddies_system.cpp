@@ -49,7 +49,7 @@ constexpr size_t allocator_buddies_system::getPNextShift() {
 }
 
 constexpr size_t allocator_buddies_system::getSizeOfFreeBlockShift() {
-    return getPPrevShift() + sizeof(void *);
+    return getPNextShift() + sizeof(void *);
 }
 
 constexpr size_t allocator_buddies_system::getTMPointerShift() {
@@ -65,6 +65,95 @@ void allocator_buddies_system::freeMemory() {
     destruct(reinterpret_cast<std::mutex *>(reinterpret_cast<byte *>(_trusted_memory) + getMutexShift()));
     deallocate_with_guard(_trusted_memory);
     _trusted_memory = nullptr;
+}
+
+void *allocator_buddies_system::allocateFirstFit(byte sizeOfNewBlock) {
+    void *curBlock = *reinterpret_cast<void **>(reinterpret_cast<byte *>(_trusted_memory) + getFirstFreeBlockShift());
+    while(curBlock != nullptr) {
+        byte sizeOfCurBlock = *(reinterpret_cast<byte *>(curBlock) + getSizeOfFreeBlockShift());
+        if(sizeOfCurBlock == sizeOfNewBlock) return allocateBlock(curBlock);
+        if(sizeOfCurBlock > sizeOfNewBlock) return divideBlock(curBlock, sizeOfNewBlock);
+        curBlock = *reinterpret_cast<void **>(reinterpret_cast<byte *>(curBlock) + getPNextShift());
+    }
+    throw std::bad_alloc();
+}
+
+void *allocator_buddies_system::allocateBestFit(byte sizeOfNewBlock) {
+    void *bestBlock = nullptr,
+    *curBlock = *reinterpret_cast<void **>(reinterpret_cast<byte *>(_trusted_memory) + getFirstFreeBlockShift());
+    byte sizeOfBestBlock = 0;
+    while(curBlock != nullptr) {
+        byte sizeOfCurBlock = *(reinterpret_cast<byte *>(curBlock) + getSizeOfFreeBlockShift());
+        if(sizeOfCurBlock >= sizeOfNewBlock) {
+            if(sizeOfCurBlock == sizeOfNewBlock) return allocateBlock(curBlock);
+            if(bestBlock == nullptr || sizeOfBestBlock > sizeOfCurBlock) {
+                bestBlock = curBlock;
+                sizeOfBestBlock = sizeOfCurBlock;
+            }
+        }
+        curBlock = *reinterpret_cast<void **>(reinterpret_cast<byte *>(curBlock) + getPNextShift());
+    }
+    if(bestBlock == nullptr) throw std::bad_alloc();
+    return divideBlock(bestBlock, sizeOfNewBlock);
+}
+
+void *allocator_buddies_system::allocateWorstFit(byte sizeOfNewBlock) {
+    void *worstBlock = nullptr,
+    *curBlock = *reinterpret_cast<void **>(reinterpret_cast<byte *>(_trusted_memory) + getFirstFreeBlockShift());
+    byte sizeOfWorstBlock = 0;
+    while(curBlock != nullptr) {
+        byte sizeOfCurBlock = *(reinterpret_cast<byte *>(curBlock) + getSizeOfFreeBlockShift());
+        if(sizeOfCurBlock >= sizeOfNewBlock) {
+            if(worstBlock == nullptr || sizeOfWorstBlock < sizeOfCurBlock) {
+                worstBlock = curBlock;
+                sizeOfWorstBlock = sizeOfCurBlock;
+            }
+        }
+        curBlock = *reinterpret_cast<void **>(reinterpret_cast<byte *>(curBlock) + getPNextShift());
+    }
+    if(worstBlock == nullptr) throw std::bad_alloc();
+    if(sizeOfWorstBlock == sizeOfNewBlock) return allocateBlock(curBlock);
+    return divideBlock(worstBlock, sizeOfNewBlock);
+}
+
+void *allocator_buddies_system::allocateBlock(void *block) {
+    void *previous_block = *reinterpret_cast<void **>(reinterpret_cast<byte *>(block) + getPPrevShift()),
+    *nextBlock = *reinterpret_cast<void **>(reinterpret_cast<byte *>(block) + getPNextShift());
+    byte sizeOfBlock = *(reinterpret_cast<byte *>(block) + getSizeOfFreeBlockShift());
+    if(previous_block != nullptr)
+        *reinterpret_cast<void **>(reinterpret_cast<byte *>(previous_block) + getPNextShift()) = nextBlock;
+    else
+        *reinterpret_cast<void **>(reinterpret_cast<byte *>(_trusted_memory) + getFirstFreeBlockShift()) = nextBlock;
+    if(nextBlock != nullptr)
+        *reinterpret_cast<void **>(reinterpret_cast<byte *>(nextBlock) + getPPrevShift()) = previous_block;
+    *reinterpret_cast<void **>(reinterpret_cast<byte *>(block) + getTMPointerShift()) = _trusted_memory;
+    *(reinterpret_cast<byte *>(block) + getSizeOfOcupiedBlockShift()) = sizeOfBlock;
+    return reinterpret_cast<byte *>(block) + getOcupiedBlockMetaSize();
+}
+
+void *allocator_buddies_system::divideBlock(void *block, byte requestedSize) {
+    byte sizeOfBlock = *(reinterpret_cast<byte *>(block) + getSizeOfFreeBlockShift());
+    while(sizeOfBlock > requestedSize) {
+        void *nextBlock = *reinterpret_cast<void **>(reinterpret_cast<byte *>(block) + getPNextShift());
+        --sizeOfBlock;
+        //заполним мету двойника
+        void *buddy = reinterpret_cast<byte *>(block) + (1 << sizeOfBlock);
+        *reinterpret_cast<void **>(reinterpret_cast<byte *>(buddy) + getPPrevShift()) = block;
+        *reinterpret_cast<void **>(reinterpret_cast<byte *>(buddy) + getPNextShift()) = nextBlock;
+        if(nextBlock != nullptr) *reinterpret_cast<void **>(reinterpret_cast<byte *>(nextBlock) + getPPrevShift()) = buddy;
+        *(reinterpret_cast<byte *>(buddy) + getSizeOfFreeBlockShift()) = sizeOfBlock;
+        //Заполним нашу мету
+        *reinterpret_cast<void **>(reinterpret_cast<byte *>(block) + getPNextShift()) = buddy;
+        *(reinterpret_cast<byte *>(block) + getSizeOfFreeBlockShift()) = sizeOfBlock;
+    }
+    return allocateBlock(block);
+}
+
+byte allocator_buddies_system::getMinimalShiftOfBlockSize(size_t const &sizeOfBlock) {
+    //for(shift = 0; sizeOfBlock < (1 << shift); ++shift){}
+    byte shift = 0;
+    while(sizeOfBlock > (1 << shift++)){}
+    return shift - 1;
 }
 
 allocator_buddies_system::~allocator_buddies_system()
@@ -135,18 +224,19 @@ allocator_buddies_system::allocator_buddies_system(
     size_t values_count)
 {
     if(_trusted_memory == nullptr) throw std::bad_alloc();
+    if(*reinterpret_cast<void **>(reinterpret_cast<byte *>(_trusted_memory) + getFirstFreeBlockShift()) == nullptr) throw std::bad_alloc();
     std::lock_guard<std::mutex> locker(*reinterpret_cast<std::mutex *>(reinterpret_cast<byte *>(_trusted_memory) + getMutexShift()));
     auto fit = *reinterpret_cast<allocator_with_fit_mode::fit_mode *>(reinterpret_cast<byte *>(_trusted_memory) + getFitModeShift());
-    auto sizeOfNewBlock = getOcupiedBlockMetaSize() + (value_size * values_count);
+    byte sizeOfNewBlockShift = getMinimalShiftOfBlockSize(getOcupiedBlockMetaSize() + (value_size * values_count));
     switch (fit) {
         case allocator_with_fit_mode::fit_mode::first_fit:
-            return allocateFirstFit(sizeOfNewBlock);
+            return allocateFirstFit(sizeOfNewBlockShift);
             break;
         case allocator_with_fit_mode::fit_mode::the_best_fit:
-            return allocateBestFit(sizeOfNewBlock);
+            return allocateBestFit(sizeOfNewBlockShift);
             break;
         case allocator_with_fit_mode::fit_mode::the_worst_fit:
-            return allocateWorstFit(sizeOfNewBlock);
+            return allocateWorstFit(sizeOfNewBlockShift);
             break;
         default:
             throw std::runtime_error("Unknown fitMode");

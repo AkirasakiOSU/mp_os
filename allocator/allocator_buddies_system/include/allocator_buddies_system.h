@@ -18,7 +18,7 @@ class allocator_buddies_system final:
 {
 
 private:
-    
+    friend int main();
     void *_trusted_memory;
 
     static constexpr size_t getGlobalMetaSize();
@@ -41,10 +41,15 @@ private:
 
     void freeMemory();
 
-    void *allocateFirstFit(size_t);
-    void *allocateBestFit(size_t);
-    void *allocateWorstFit(size_t);
+    void *allocateFirstFit(byte);
+    void *allocateBestFit(byte);
+    void *allocateWorstFit(byte);
 
+    void *allocateBlock(void *);
+
+    void *divideBlock(void *, byte);
+
+    static byte getMinimalShiftOfBlockSize(size_t const &);
 public:
     
     ~allocator_buddies_system() override;

@@ -134,6 +134,9 @@ void printInfo(allocator_buddies_system const &all) {
 
 int main() {
     allocator_buddies_system all(10, nullptr, nullptr, allocator_with_fit_mode::fit_mode::first_fit);
+    all.allocate(1, 400);
+    all.allocate(1, 30);
+    all.allocate(1, 5);
     printInfo(all);
     return 0;
 }
