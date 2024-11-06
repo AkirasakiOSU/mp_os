@@ -1,11 +1,12 @@
 #include <gtest/gtest.h>
+#include <iostream>
 #include <allocator.h>
 #include <allocator_boundary_tags.h>
 #include <client_logger_builder.h>
 #include <logger.h>
 #include <logger_builder.h>
 
-/*logger *create_logger(
+logger *create_logger(
     std::vector<std::pair<std::string, logger::severity>> const &output_file_streams_setup,
     bool use_console_stream = true,
     logger::severity console_stream_severity = logger::severity::debug)
@@ -83,12 +84,12 @@ TEST(positiveTests, test2)
     allocator_instance->deallocate(first_block);
     first_block = reinterpret_cast<char *>(allocator_instance->allocate(sizeof(char), 999));
     auto actual_blocks_state = dynamic_cast<allocator_test_utils *>(allocator_instance)->get_blocks_info();
-    std::vector<allocator_test_utils::block_info> expected_blocks_state
+    std::vector<allocator_test_utils::block_info> expected_blocks_state(
         {
             { .block_size = 1000 + sizeof(allocator::block_size_t) + sizeof(allocator::block_pointer_t) * 2, .is_block_occupied = true },
             { .block_size = 1000 + sizeof(allocator::block_size_t) + sizeof(allocator::block_pointer_t) * 2, .is_block_occupied = true },
             { .block_size = 3000 - (1000 + sizeof(allocator::block_size_t) + sizeof(allocator::block_pointer_t)) * 2, .is_block_occupied = false }
-        };
+        });
     
     ASSERT_EQ(actual_blocks_state.size(), expected_blocks_state.size());
     for (int i = 0; i < actual_blocks_state.size(); i++)
@@ -118,7 +119,7 @@ TEST(falsePositiveTests, test1)
     
     delete allocator_instance;
     delete logger_instance;
-}*/
+}
 
 void printInfo(allocator_boundary_tags const &all) {
     auto info = all.get_blocks_info();
@@ -127,25 +128,27 @@ void printInfo(allocator_boundary_tags const &all) {
     }
     std::cout << std::endl;
 }
-
-int main() {
-    allocator_boundary_tags all(2000, nullptr, nullptr, allocator_boundary_tags::fit_mode::the_best_fit);
-    auto p = all.allocate(1, 200);
-    auto p2 = all.allocate(1, 200);
-    auto p3 = all.allocate(1, 200);
+/*int main() {
+    allocator_boundary_tags all(2000, nullptr, nullptr, allocator_boundary_tags::fit_mode::first_fit);
     printInfo(all);
-    all.deallocate(p);
+    auto p1 = all.allocate(1, 400);
+    auto p2 = all.allocate(1, 500);
+    auto p3 = all.allocate(1, 400);
+    auto p4 = all.allocate(1, 500);
+
+    all.deallocate(p3);
     all.deallocate(p2);
-    all.allocate(1, 0);
+    all.deallocate(p4);
+    all.deallocate(p1);
     printInfo(all);
     return 0;
-}
+}*/
 
-/*int main(
+int main(
     int argc,
     char *argv[])
 {
     testing::InitGoogleTest(&argc, argv);
     
     return RUN_ALL_TESTS();
-}*/
+}

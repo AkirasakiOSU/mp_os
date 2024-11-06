@@ -18,7 +18,7 @@ class allocator_buddies_system final:
 {
 
 private:
-    friend int main();
+    //friend int main();
     void *_trusted_memory;
 
     static constexpr size_t getGlobalMetaSize();
@@ -48,6 +48,9 @@ private:
     void *allocateBlock(void *);
 
     void *divideBlock(void *, byte);
+    void uniteBlock(void *);
+
+    inline size_t getRelativePTR(void *);
 
     static byte getMinimalShiftOfBlockSize(size_t const &);
 public:
@@ -55,10 +58,10 @@ public:
     ~allocator_buddies_system() override;
     
     allocator_buddies_system(
-        allocator_buddies_system const &other);
+        allocator_buddies_system const &other) = delete;
     
     allocator_buddies_system &operator=(
-        allocator_buddies_system const &other);
+        allocator_buddies_system const &other) = delete;
     
     allocator_buddies_system(
         allocator_buddies_system &&other) noexcept;

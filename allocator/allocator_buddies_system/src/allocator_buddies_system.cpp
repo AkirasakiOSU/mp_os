@@ -1,7 +1,7 @@
 #include <not_implemented.h>
 
 #include "../include/allocator_buddies_system.h"
-
+#include <cmath>
 #include <mutex>
 
 constexpr size_t allocator_buddies_system::getGlobalMetaSize() {
@@ -149,8 +149,40 @@ void *allocator_buddies_system::divideBlock(void *block, byte requestedSize) {
     return allocateBlock(block);
 }
 
+void allocator_buddies_system::uniteBlock(void *at) {
+    if(at == nullptr) throw;
+    void *pPrev = *reinterpret_cast<void **>(reinterpret_cast<byte *>(at) + getPPrevShift()),
+         *pNext = *reinterpret_cast<void **>(reinterpret_cast<byte *>(at) + getPNextShift());
+    if(pPrev == nullptr && pNext == nullptr) return;
+    byte sizeOfAt = *(reinterpret_cast<byte *>(at) + getSizeOfFreeBlockShift());
+    size_t relativePtrOfAt = getRelativePTR(at),
+    relativePtrOfBuddy = relativePtrOfAt ^ (1 << sizeOfAt);
+    void *buddy = reinterpret_cast<byte *>(_trusted_memory) + getGlobalMetaSize() + relativePtrOfBuddy;
+    bool buddyIsOcupied = *reinterpret_cast<void **>(reinterpret_cast<byte *>(buddy) + getTMPointerShift()) == _trusted_memory;
+    if(buddyIsOcupied) return;
+    byte sizeOfBuddy = *(reinterpret_cast<byte *>(buddy) + getSizeOfFreeBlockShift());
+    if(sizeOfAt != sizeOfBuddy) return;
+    if(at < buddy) {
+        std::swap(at, buddy);
+    }
+    ++*(reinterpret_cast<byte *>(buddy) + getSizeOfFreeBlockShift());
+    pNext = *reinterpret_cast<void **>(reinterpret_cast<byte *>(at) + getPNextShift());
+    *reinterpret_cast<void **>(reinterpret_cast<byte *>(buddy) + getPNextShift()) = pNext;
+    if(pNext != nullptr)
+        *reinterpret_cast<void **>(reinterpret_cast<byte *>(pNext) + getPPrevShift()) = buddy;
+    uniteBlock(buddy);
+}
+
+size_t allocator_buddies_system::getRelativePTR(void *at) {
+    byte *pFirst = reinterpret_cast<byte *>(_trusted_memory) + getGlobalMetaSize();
+    return reinterpret_cast<byte *>(at) - pFirst;
+}
+
+
 byte allocator_buddies_system::getMinimalShiftOfBlockSize(size_t const &sizeOfBlock) {
     //for(shift = 0; sizeOfBlock < (1 << shift); ++shift){}
+    byte minimalShift = static_cast<byte>(std::log2(getFreeBlockMetaSize()));
+    if(sizeOfBlock <= getFreeBlockMetaSize()) return minimalShift + 1;
     byte shift = 0;
     while(sizeOfBlock > (1 << shift++)){}
     return shift - 1;
@@ -195,6 +227,7 @@ allocator_buddies_system::allocator_buddies_system(
 {
     if(space_size > UCHAR_MAX) throw std::runtime_error("Не придумал :3");
     size_t sizeOfTrustedMemory = getGlobalMetaSize() + (1 << space_size);
+    if(1 << space_size < getFreeBlockMetaSize()) throw std::logic_error("Space size is small");
     try {
         _trusted_memory = (parent_allocator == nullptr ?
         ::operator new(sizeOfTrustedMemory) :
@@ -247,7 +280,48 @@ allocator_buddies_system::allocator_buddies_system(
 void allocator_buddies_system::deallocate(
     void *at)
 {
-    throw not_implemented("void allocator_buddies_system::deallocate(void *)", "your code should be here...");
+    if(at == nullptr) return;
+    if(_trusted_memory == nullptr) throw std::logic_error("Allocator is empty");
+    at = reinterpret_cast<byte *>(at) - getOcupiedBlockMetaSize();
+    void *pFirst = reinterpret_cast<byte *>(_trusted_memory) + getGlobalMetaSize(),
+        *pLast = reinterpret_cast<byte *>(_trusted_memory) + *reinterpret_cast<size_t *>(reinterpret_cast<byte *>(_trusted_memory) + getSizeOfTrustedMemoryShift());
+    if(at < pFirst || at > pLast) throw std::logic_error("Ptr is non consists to that allocator");
+    if(*reinterpret_cast<void **>(reinterpret_cast<byte *>(at) + getTMPointerShift()) != _trusted_memory) throw std::logic_error("Ptr not belong to that allocator");
+    void *pRight = *reinterpret_cast<void **>(reinterpret_cast<byte *>(_trusted_memory) + getFirstFreeBlockShift());
+    byte sizeOfBlock = *(reinterpret_cast<byte *>(at) + getSizeOfOcupiedBlockShift());
+    if(pRight == nullptr) {
+        //У нас нет ни одного блока :(
+        *reinterpret_cast<void **>(reinterpret_cast<byte *>(_trusted_memory) + getFirstFreeBlockShift()) = at;
+        *reinterpret_cast<void **>(reinterpret_cast<byte *>(at) + getPPrevShift()) = nullptr;
+        *reinterpret_cast<void **>(reinterpret_cast<byte *>(at) + getPNextShift()) = nullptr;
+        *(reinterpret_cast<byte *>(at) + getSizeOfFreeBlockShift()) = sizeOfBlock;
+        return;
+    }
+    while(true) {
+        if(at < pRight) {
+            //Нашли перед каким блоком стоит наш at
+            void *pLeft = *reinterpret_cast<void **>(reinterpret_cast<byte *>(pRight) + getPPrevShift());
+            *reinterpret_cast<void **>(reinterpret_cast<byte *>(pRight) + getPPrevShift()) = at;
+            *reinterpret_cast<void **>(reinterpret_cast<byte *>(at) + getPNextShift()) = pRight;
+            *reinterpret_cast<void **>(reinterpret_cast<byte *>(at) + getPPrevShift()) = pLeft;
+            if(pLeft == nullptr)
+                *reinterpret_cast<void **>(reinterpret_cast<byte *>(_trusted_memory) + getFirstFreeBlockShift()) = at;
+            else
+                *reinterpret_cast<void **>(reinterpret_cast<byte *>(pLeft) + getPNextShift()) = at;
+            *(reinterpret_cast<byte *>(at) + getSizeOfFreeBlockShift()) = sizeOfBlock;
+            uniteBlock(at);
+            return;
+        }
+        if(*reinterpret_cast<void **>(reinterpret_cast<byte *>(pRight) + getPNextShift()) == nullptr) break;
+        pRight = *reinterpret_cast<void **>(reinterpret_cast<byte *>(pRight) + getPNextShift());
+    }
+    //Если наш блок будет последним
+    *reinterpret_cast<void **>(reinterpret_cast<byte *>(pRight) + getPNextShift()) = at;
+    *reinterpret_cast<void **>(reinterpret_cast<byte *>(at) + getPPrevShift()) = pRight;
+    *reinterpret_cast<void **>(reinterpret_cast<byte *>(at) + getPNextShift()) = nullptr;
+    *(reinterpret_cast<byte *>(at) + getSizeOfFreeBlockShift()) = sizeOfBlock;
+    uniteBlock(at);
+    //throw not_implemented("void allocator_buddies_system::deallocate(void *)", "your code should be here...");
 }
 
 inline void allocator_buddies_system::set_fit_mode(

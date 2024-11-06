@@ -6,7 +6,7 @@
 #include <logger.h>
 #include <logger_builder.h>
 
-/*logger *create_logger(
+logger *create_logger(
     std::vector<std::pair<std::string, logger::severity>> const &output_file_streams_setup,
     bool use_console_stream = true,
     logger::severity console_stream_severity = logger::severity::debug)
@@ -44,7 +44,8 @@ TEST(positiveTests, test1)
     auto actual_blocks_state = dynamic_cast<allocator_test_utils *>(allocator_instance)->get_blocks_info();
     std::vector<allocator_test_utils::block_info> expected_blocks_state
         {
-            { .block_size = 4096, .is_block_occupied = false }
+            allocator_test_utils::block_info(4096, false)
+            //{ .block_size = 4096, .is_block_occupied = false }
         };
     
     ASSERT_EQ(actual_blocks_state.size(), expected_blocks_state.size());
@@ -73,9 +74,12 @@ TEST(positiveTests, test2)
     auto actual_blocks_state = dynamic_cast<allocator_test_utils *>(allocator_instance)->get_blocks_info();
     std::vector<allocator_test_utils::block_info> expected_blocks_state
         {
-            { .block_size = 64, .is_block_occupied = true },
-            { .block_size = 64, .is_block_occupied = false },
-            { .block_size = 128, .is_block_occupied = false }
+            allocator_test_utils::block_info(64, true),
+            allocator_test_utils::block_info(64, false),
+            allocator_test_utils::block_info(128, false)
+            //{ .block_size = 64, .is_block_occupied = true },
+            //{ .block_size = 64, .is_block_occupied = false },
+            //{ .block_size = 128, .is_block_occupied = false }
         };
     
     ASSERT_EQ(actual_blocks_state.size(), expected_blocks_state.size());
@@ -113,16 +117,16 @@ TEST(positiveTests, test3)
 TEST(falsePositiveTests, test1)
 {
     ASSERT_THROW(new allocator_buddies_system(static_cast<int>(std::floor(std::log2(sizeof(allocator::block_pointer_t) * 2 + 1))) - 1), std::logic_error);
-}*/
+}
 
-/*int main(
+int main(
     int argc,
     char *argv[])
 {
     testing::InitGoogleTest(&argc, argv);
     
     return RUN_ALL_TESTS();
-}*/
+}
 
 void printInfo(allocator_buddies_system const &all) {
     auto info = all.get_blocks_info();
@@ -132,11 +136,12 @@ void printInfo(allocator_buddies_system const &all) {
     std::cout << std::endl;
 }
 
-int main() {
-    allocator_buddies_system all(10, nullptr, nullptr, allocator_with_fit_mode::fit_mode::first_fit);
-    all.allocate(1, 400);
-    all.allocate(1, 30);
-    all.allocate(1, 5);
+/*int main() {
+    allocator_buddies_system all(8, nullptr, nullptr, allocator_with_fit_mode::fit_mode::first_fit);
+    auto p1 = all.allocate(sizeof(byte), 0),
+    p2 = all.allocate(sizeof(byte), 0);
+    all.deallocate(p1);
+    //all.deallocate(p2);
     printInfo(all);
     return 0;
-}
+}*/

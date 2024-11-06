@@ -285,8 +285,8 @@ int main() {
     auto p3 = all.allocate(1, 500);
     *reinterpret_cast<char *>(p3) = 42;
     auto p4 = all.allocate(1, 400);
-    all.allocate(1, 120);
-    all.allocate(1, 0);
+    //all.allocate(1, 120);
+    //all.allocate(1, 0);
     all.deallocate(p);
     all.deallocate(p2);
     all.deallocate(p3);

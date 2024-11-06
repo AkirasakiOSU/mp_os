@@ -59,6 +59,7 @@ void allocator_boundary_tags::freeMemory() {
     destruct(reinterpret_cast<std::mutex *>(reinterpret_cast<byte *>(_trusted_memory) + getMutexShift()));
     if(get_allocator() == nullptr) ::operator delete(_trusted_memory);
     else get_allocator()->deallocate(_trusted_memory);
+    _trusted_memory = nullptr;
 }
 
 void *allocator_boundary_tags::allocateFirstFit(size_t sizeOfNewBlock) {
@@ -162,10 +163,9 @@ allocator_boundary_tags::allocator_boundary_tags(
     _trusted_memory(nullptr)
 {
     if(other._trusted_memory == nullptr) return;
-    reinterpret_cast<std::mutex *>(reinterpret_cast<byte *>(other._trusted_memory) + getMutexShift()) ->lock();
+    std::lock_guard<std::mutex> locker(*reinterpret_cast<std::mutex *>(reinterpret_cast<byte *>(other._trusted_memory) + getMutexShift()));
     _trusted_memory = other._trusted_memory;
     other._trusted_memory = nullptr;
-    reinterpret_cast<std::mutex *>(reinterpret_cast<byte *>(_trusted_memory) + getMutexShift()) ->unlock();
     //throw not_implemented("allocator_boundary_tags::allocator_boundary_tags(allocator_boundary_tags &&) noexcept", "your code should be here...");
 }
 
@@ -173,6 +173,7 @@ allocator_boundary_tags &allocator_boundary_tags::operator=(
     allocator_boundary_tags &&other) noexcept
 {
     if(this != &other) {
+        std::lock_guard<std::mutex> locker(*reinterpret_cast<std::mutex *>(reinterpret_cast<byte *>(other._trusted_memory) + getMutexShift()));
         freeMemory();
         _trusted_memory = other._trusted_memory;
         other._trusted_memory = nullptr;
@@ -213,7 +214,7 @@ allocator_boundary_tags::allocator_boundary_tags(
     size_t values_count)
 {
     if(_trusted_memory == nullptr) throw std::bad_alloc();
-    reinterpret_cast<std::mutex *>(reinterpret_cast<byte *>(_trusted_memory) + getMutexShift()) ->lock();
+    std::lock_guard<std::mutex> locker(*reinterpret_cast<std::mutex *>(reinterpret_cast<byte *>(_trusted_memory) + getMutexShift()));
     auto sizeOfNewBlock = (value_size * values_count) + (2 * getLocalMetaSize());
     auto fitMode = reinterpret_cast<allocator_with_fit_mode::fit_mode *>(reinterpret_cast<byte *>(_trusted_memory) + getFitModeShift());
     void *res = nullptr;
@@ -229,7 +230,6 @@ allocator_boundary_tags::allocator_boundary_tags(
                 res = allocateWorstFit(sizeOfNewBlock);
                 break;
             default:
-                reinterpret_cast<std::mutex *>(reinterpret_cast<byte *>(_trusted_memory) + getMutexShift()) ->unlock();
                 throw std::bad_alloc();
         }
     }
@@ -237,7 +237,6 @@ allocator_boundary_tags::allocator_boundary_tags(
         error_with_guard(e.what());
         throw e;
     }
-    reinterpret_cast<std::mutex *>(reinterpret_cast<byte *>(_trusted_memory) + getMutexShift()) ->unlock();
     return res;
     throw std::bad_alloc();
     //throw not_implemented("[[nodiscard]] void *allocator_boundary_tags::allocate(size_t, size_t)", "your code should be here...");
@@ -247,8 +246,13 @@ void allocator_boundary_tags::deallocate(
     void *at)
 {
     if(_trusted_memory == nullptr) throw std::logic_error("Allocator is empty");
+    if(at == nullptr) return;
+    if(at < reinterpret_cast<byte *>(_trusted_memory) + getGlobalMetaSize() ||
+        at > reinterpret_cast<byte *>(_trusted_memory) + *reinterpret_cast<size_t *>(reinterpret_cast<byte *>(_trusted_memory) + getSizeOfTrustedMemoryShift()))
+        throw std::logic_error("Pointer is not contained in trusted memory");
     at = reinterpret_cast<byte *>(at) - getLocalMetaSize();
     if(*reinterpret_cast<void **>(reinterpret_cast<byte *>(at) + getTrustedMemoryPtrShift()) != _trusted_memory) throw std::logic_error("Pointer is not contained in that allocator");
+    std::lock_guard<std::mutex> locker(*reinterpret_cast<std::mutex *>(reinterpret_cast<byte *>(_trusted_memory) + getMutexShift()));
     auto sizeOfAt = *reinterpret_cast<size_t *>(reinterpret_cast<byte *>(at) + getSizeOfBlockShift());
     if(!*reinterpret_cast<bool *>(reinterpret_cast<byte *>(at) - getLocalMetaSize() + getStatusOfBlockShift()) && at != reinterpret_cast<byte *>(_trusted_memory) + getFirstBlockShift()) {
         //Перед новым стоит свободный
@@ -286,6 +290,7 @@ inline void allocator_boundary_tags::set_fit_mode(
     allocator_with_fit_mode::fit_mode mode)
 {
     if(_trusted_memory == nullptr) return;
+    std::lock_guard<std::mutex> locker(*reinterpret_cast<std::mutex *>(reinterpret_cast<byte *>(_trusted_memory) + getMutexShift()));
     *reinterpret_cast<allocator_with_fit_mode::fit_mode *>(reinterpret_cast<byte *>(_trusted_memory) + getFitModeShift()) = mode;
     //throw not_implemented("inline void allocator_boundary_tags::set_fit_mode(allocator_with_fit_mode::fit_mode)", "your code should be here...");
 }
