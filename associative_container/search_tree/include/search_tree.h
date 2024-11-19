@@ -21,28 +21,6 @@ class search_tree:
     protected allocator_guardant,
     protected logger_guardant
 {
-
-public:
-    
-    struct __attribute__((unused)) common_node
-    {
-    
-    public:
-        
-        typename associative_container<tkey, tvalue>::key_value_pair *keys_and_values;
-        
-        common_node **subtrees;
-        
-        size_t virtual_size;
-    
-    public:
-    
-        common_node();
-        
-        virtual ~common_node() noexcept;
-        
-    };
-
 protected:
     
     std::function<int(tkey const &, tkey const &)> _keys_comparer;
@@ -76,35 +54,18 @@ protected:
     
 };
 
-//region search_tree<tkey, tvalue>::node implementation
-
-template<
-    typename tkey,
-    typename tvalue>
-search_tree<tkey, tvalue>::common_node::common_node()
-{
-    throw not_implemented("template<typename tkey, typename tvalue> search_tree<tkey, tvalue>::common_node::common_node()", "your code should be here...");
-}
-
-template<
-    typename tkey,
-    typename tvalue>
-search_tree<tkey, tvalue>::common_node::~common_node() noexcept
-{
-    throw not_implemented("template<typename tkey, typename tvalue> search_tree<tkey, tvalue>::common_node::~common_node() noexcept", "your code should be here...");
-}
-
-// endregion search_tree<tkey, tvalue>::node implementation
-
 template<
     typename tkey,
     typename tvalue>
 search_tree<tkey, tvalue>::search_tree(
     std::function<int(tkey const &, tkey const &)> keys_comparer,
     logger *logger,
-    allocator *allocator)
+    allocator *allocator) :
+    _allocator(allocator),
+    _logger(logger),
+    _keys_comparer(keys_comparer)
 {
-    throw not_implemented("template<typename tkey, typename tvalue> search_tree<tkey, tvalue>::search_tree(std::function<int(tkey const &, tkey const &)>, logger *, allocator *)", "your code should be here...");
+    //throw not_implemented("template<typename tkey, typename tvalue> search_tree<tkey, tvalue>::search_tree(std::function<int(tkey const &, tkey const &)>, logger *, allocator *)", "your code should be here...");
 }
 
 template<
@@ -112,7 +73,8 @@ template<
     typename tvalue>
 [[nodiscard]] inline allocator *search_tree<tkey, tvalue>::get_allocator() const
 {
-    throw not_implemented("template<typename tkey, typename tvalue> [[nodiscard]] inline allocator *search_tree<tkey, tvalue>::get_allocator() const", "your code should be here...");
+    return _allocator;
+    //throw not_implemented("template<typename tkey, typename tvalue> [[nodiscard]] inline allocator *search_tree<tkey, tvalue>::get_allocator() const", "your code should be here...");
 }
 
 template<
@@ -120,7 +82,8 @@ template<
     typename tvalue>
 [[nodiscard]] inline logger *search_tree<tkey, tvalue>::get_logger() const
 {
-    throw not_implemented("template<typename tkey, typename tvalue> [[nodiscard]] inline logger *search_tree<tkey, tvalue>::get_logger() const", "your code should be here...");
+    return _logger;
+    //throw not_implemented("template<typename tkey, typename tvalue> [[nodiscard]] inline logger *search_tree<tkey, tvalue>::get_logger() const", "your code should be here...");
 }
 
 #endif //MATH_PRACTICE_AND_OPERATING_SYSTEMS_SEARCH_TREE_H

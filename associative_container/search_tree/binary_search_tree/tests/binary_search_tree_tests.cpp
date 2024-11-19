@@ -599,11 +599,20 @@ TEST(binarySearchTreePositiveTests, test11)
     delete logger;
 }
 
-int main(
+/*int main(
     int argc,
     char **argv)
 {
     testing::InitGoogleTest(&argc, argv);
     
     return RUN_ALL_TESTS();
+}*/
+
+int main() {
+    binary_search_tree<int, int> tree([](int const &a, int const b){return b - a;});
+    tree.insert(0, 0);
+    tree.insert(-1, 1);
+    tree.insert(10, -1);
+    tree.printTree(std::cout);
+    return 0;
 }
