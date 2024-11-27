@@ -609,10 +609,23 @@ TEST(binarySearchTreePositiveTests, test11)
 }*/
 
 int main() {
-    binary_search_tree<int, int> tree([](int const &a, int const b){return b - a;});
+    binary_search_tree<int, int> tree;
     tree.insert(0, 0);
-    tree.insert(-1, 1);
-    tree.insert(10, -1);
+    tree.insert(-1, -1);
+    tree.insert(10, 10);
+    tree.insert(-5, -5);
+    tree.insert(-6, -6);
+    tree.insert(-7, -7);
+    tree.insert(5, 5);
+    tree.insert(11, 11);
+    tree.insert(-8, -8);
+    tree.insert(-30, -30);
+    tree.insert(-2, -2);
     tree.printTree(std::cout);
+    auto v = tree.obtain_between(-10, 10, true, true);
+    std::cout << std::endl;
+    for(auto &i : v) {
+        std::cout << i.value << ' ';
+    }
     return 0;
 }

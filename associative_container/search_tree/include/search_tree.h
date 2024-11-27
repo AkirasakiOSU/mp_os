@@ -25,7 +25,7 @@ protected:
     
     std::function<int(tkey const &, tkey const &)> _keys_comparer;
 
-private:
+protected:
     
     logger *_logger;
     
@@ -34,7 +34,7 @@ private:
 protected:
     
     explicit search_tree(
-        std::function<int(tkey const &, tkey const &)> keys_comparer = std::less<tkey>(),
+        std::function<int(tkey const &, tkey const &)> keys_comparer,
         logger *logger = nullptr,
         allocator *allocator = nullptr);
     
