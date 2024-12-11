@@ -569,6 +569,7 @@ TEST(splayTreePositiveTests, test10)
     delete logger;
 }
 
+/*
 int main(
     int argc,
     char **argv)
@@ -576,4 +577,16 @@ int main(
     testing::InitGoogleTest(&argc, argv);
     
     return RUN_ALL_TESTS();
+}*/
+
+int main() {
+    splay_tree<int, int> tree;
+    tree.insert(0, 0);
+    tree.insert(-2, -2);
+    tree.insert(-1, -1);
+    tree.insert(10, 10);
+    tree.insert(-10, -10);
+    tree.obtain(10);
+    tree.dispose(-1);
+    return 0;
 }

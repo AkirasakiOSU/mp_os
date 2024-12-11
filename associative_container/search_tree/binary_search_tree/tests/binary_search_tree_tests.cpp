@@ -608,6 +608,7 @@ TEST(binarySearchTreePositiveTests, test11)
     return RUN_ALL_TESTS();
 }*/
 
+
 int main() {
     binary_search_tree<int, int> tree;
     tree.insert(0, 0);
@@ -621,11 +622,20 @@ int main() {
     tree.insert(-8, -8);
     tree.insert(-30, -30);
     tree.insert(-2, -2);
-    tree.printTree(std::cout);
-    auto v = tree.obtain_between(-10, 10, true, true);
+    auto other = std::move(tree);
+    other.insert(-55, -55);
+    //tree.dispose(0);
+    //tree.dispose(-1);
+    //tree.dispose(10);
+    //tree.dispose(-5);
+    //tree.dispose(-6);
+    //tree.dispose(-7);
+    //tree.dispose(5);
+    //tree.dispose(11);
+    //tree.dispose(-8);
+    //tree.dispose(-30);
+    //tree.dispose(-2);
+    other.printTree(std::cout);
     std::cout << std::endl;
-    for(auto &i : v) {
-        std::cout << i.value << ' ';
-    }
     return 0;
 }
