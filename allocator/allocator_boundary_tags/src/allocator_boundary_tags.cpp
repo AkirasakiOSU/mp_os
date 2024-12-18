@@ -64,7 +64,8 @@ void allocator_boundary_tags::freeMemory() {
 
 void *allocator_boundary_tags::allocateFirstFit(size_t sizeOfNewBlock) {
     byte *curentBlock = reinterpret_cast<byte *>(_trusted_memory) + getFirstBlockShift(),
-         *lastPtr = reinterpret_cast<byte *>(_trusted_memory) + *reinterpret_cast<size_t *>(reinterpret_cast<byte *>(_trusted_memory) + getSizeOfTrustedMemoryShift());
+         *lastPtr = reinterpret_cast<byte *>(_trusted_memory) + *reinterpret_cast<size_t *>(reinterpret_cast<byte *>(_trusted_memory)
+             + getSizeOfTrustedMemoryShift());
     while(curentBlock < lastPtr) {
         auto sizeOfBlock = *reinterpret_cast<size_t *>(curentBlock + getSizeOfBlockShift());
         if(!*reinterpret_cast<bool *>(curentBlock + getStatusOfBlockShift())) {
@@ -79,12 +80,14 @@ void *allocator_boundary_tags::allocateFirstFit(size_t sizeOfNewBlock) {
 void *allocator_boundary_tags::allocateBestFit(size_t sizeOfBlock) {
     byte *bestBlock = findFirstFreeBlock(sizeOfBlock),
     *currentBlock = reinterpret_cast<byte *>(_trusted_memory) + getFirstBlockShift(),
-    *pLast = reinterpret_cast<byte *>(_trusted_memory) + *reinterpret_cast<size_t *>(reinterpret_cast<byte *>(_trusted_memory) + getSizeOfTrustedMemoryShift());
+    *pLast = reinterpret_cast<byte *>(_trusted_memory) + *reinterpret_cast<size_t *>(reinterpret_cast<byte *>(_trusted_memory) +
+        getSizeOfTrustedMemoryShift());
     if(bestBlock == nullptr) throw std::bad_alloc();
     if(*reinterpret_cast<size_t *>(bestBlock + getSizeOfBlockShift()) == sizeOfBlock) return allocateFullBlock(bestBlock);
     while(currentBlock < pLast) {
         if(!*reinterpret_cast<bool *>(currentBlock + getStatusOfBlockShift())) {
-            if(*reinterpret_cast<size_t *>(bestBlock + getSizeOfBlockShift()) > *reinterpret_cast<size_t *>(currentBlock + getSizeOfBlockShift())) bestBlock = currentBlock;
+            if(*reinterpret_cast<size_t *>(bestBlock + getSizeOfBlockShift()) > *reinterpret_cast<size_t *>(currentBlock +
+                getSizeOfBlockShift())) bestBlock = currentBlock;
         }
         currentBlock += *reinterpret_cast<size_t *>(currentBlock + getSizeOfBlockShift());
     }
@@ -94,12 +97,14 @@ void *allocator_boundary_tags::allocateBestFit(size_t sizeOfBlock) {
 void *allocator_boundary_tags::allocateWorstFit(size_t sizeOfBlock) {
     byte *bestBlock = findFirstFreeBlock(sizeOfBlock),
     *currentBlock = reinterpret_cast<byte *>(_trusted_memory) + getFirstBlockShift(),
-    *pLast = reinterpret_cast<byte *>(_trusted_memory) + *reinterpret_cast<size_t *>(reinterpret_cast<byte *>(_trusted_memory) + getSizeOfTrustedMemoryShift());
+    *pLast = reinterpret_cast<byte *>(_trusted_memory) + *reinterpret_cast<size_t *>(reinterpret_cast<byte *>(_trusted_memory) +
+        getSizeOfTrustedMemoryShift());
     if(bestBlock == nullptr) throw std::bad_alloc();
     if(*reinterpret_cast<size_t *>(bestBlock + getSizeOfBlockShift()) == sizeOfBlock) return allocateFullBlock(bestBlock);
     while(currentBlock < pLast) {
         if(!*reinterpret_cast<bool *>(currentBlock + getStatusOfBlockShift())) {
-            if(*reinterpret_cast<size_t *>(bestBlock + getSizeOfBlockShift()) < *reinterpret_cast<size_t *>(currentBlock + getSizeOfBlockShift())) bestBlock = currentBlock;
+            if(*reinterpret_cast<size_t *>(bestBlock + getSizeOfBlockShift()) < *reinterpret_cast<size_t *>(currentBlock +
+                getSizeOfBlockShift())) bestBlock = currentBlock;
         }
         currentBlock += *reinterpret_cast<size_t *>(currentBlock + getSizeOfBlockShift());
     }
@@ -273,7 +278,9 @@ void allocator_boundary_tags::deallocate(
         *reinterpret_cast<bool *>(reinterpret_cast<byte *>(at) + getStatusOfBlockShift()) = false;
         *reinterpret_cast<bool *>(reinterpret_cast<byte *>(at) + sizeOfAt - getLocalMetaSize() + getStatusOfBlockShift()) = false;
     }
-    if(!*reinterpret_cast<bool *>(reinterpret_cast<byte *>(at) + sizeOfAt + getStatusOfBlockShift()) && (reinterpret_cast<byte *>(at) + sizeOfAt) != (reinterpret_cast<byte *>(_trusted_memory) + *reinterpret_cast<size_t *>(reinterpret_cast<byte *>(_trusted_memory) + getSizeOfTrustedMemoryShift()))) {
+    if(!*reinterpret_cast<bool *>(reinterpret_cast<byte *>(at) + sizeOfAt + getStatusOfBlockShift()) &&
+        (reinterpret_cast<byte *>(at) + sizeOfAt) != (reinterpret_cast<byte *>(_trusted_memory) +
+            *reinterpret_cast<size_t *>(reinterpret_cast<byte *>(_trusted_memory) + getSizeOfTrustedMemoryShift()))) {
         //За новым стоит совбодный
         //Взяли размер следующего блока
         auto sizeOfNextBlock = *reinterpret_cast<size_t *>(reinterpret_cast<byte *>(at) + sizeOfAt + getSizeOfBlockShift());

@@ -178,7 +178,6 @@ size_t allocator_buddies_system::getRelativePTR(void *at) {
     return reinterpret_cast<byte *>(at) - pFirst;
 }
 
-
 byte allocator_buddies_system::getMinimalShiftOfBlockSize(size_t const &sizeOfBlock) {
     //for(shift = 0; sizeOfBlock < (1 << shift); ++shift){}
     byte minimalShift = static_cast<byte>(std::log2(getFreeBlockMetaSize()));
@@ -225,7 +224,6 @@ allocator_buddies_system::allocator_buddies_system(
     allocator_with_fit_mode::fit_mode allocate_fit_mode) :
     _trusted_memory(nullptr)
 {
-    if(space_size > UCHAR_MAX) throw std::runtime_error("Не придумал :3");
     size_t sizeOfTrustedMemory = getGlobalMetaSize() + (1 << space_size);
     if(1 << space_size < getFreeBlockMetaSize()) throw std::logic_error("Space size is small");
     try {

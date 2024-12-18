@@ -569,24 +569,25 @@ TEST(splayTreePositiveTests, test10)
     delete logger;
 }
 
-/*
+
 int main(
     int argc,
     char **argv)
 {
     testing::InitGoogleTest(&argc, argv);
-    
-    return RUN_ALL_TESTS();
-}*/
 
-int main() {
-    splay_tree<int, int> tree;
-    tree.insert(0, 0);
-    tree.insert(-2, -2);
-    tree.insert(-1, -1);
-    tree.insert(10, 10);
-    tree.insert(-10, -10);
-    tree.obtain(10);
-    tree.dispose(-1);
-    return 0;
+    return RUN_ALL_TESTS();
 }
+
+// int main() {
+//     splay_tree<int, int> splay1;
+//
+//     splay1.insert(1, 5);
+//     splay1.insert(2, 12);
+//     splay1.insert(15, 1);
+//     splay1.insert(3, 67);
+//     splay1.insert(4, 45);
+//
+//     splay1.printTree(std::cout);
+//     return 0;
+// }

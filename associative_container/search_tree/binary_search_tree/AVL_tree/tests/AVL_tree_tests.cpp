@@ -413,7 +413,7 @@ TEST(AVLTreePositiveTests, test7)
     avl1->insert(3, "i");
     avl1->insert(2, "l");
     avl1->insert(5, "b");
-    
+
     avl1->dispose(3);
     
     std::vector<typename AVL_tree<int, std::string>::iterator_data> expected_result =
@@ -427,7 +427,7 @@ TEST(AVLTreePositiveTests, test7)
         };
     
     EXPECT_TRUE(infix_iterator_test(*reinterpret_cast<AVL_tree<int, std::string> *>(avl1), expected_result));
-    
+
     logger->trace("AVLTreePositiveTests.test7 finished");
     
     delete avl1;
@@ -618,6 +618,21 @@ int main(
     char **argv)
 {
     testing::InitGoogleTest(&argc, argv);
-    
+
     return RUN_ALL_TESTS();
 }
+
+// int main() {
+//     AVL_tree<int, std::string> avl;
+//     avl.insert(6, "a");
+//     avl.insert(8, "c");
+//     avl.insert(15, "x");
+//     avl.insert(4, "j");
+//     avl.insert(3, "i");
+//     avl.insert(2, "l");
+//     avl.insert(5, "b");
+//
+//     avl.dispose(3);
+//     avl.printTree(std::cout);
+//     return 0;
+// }

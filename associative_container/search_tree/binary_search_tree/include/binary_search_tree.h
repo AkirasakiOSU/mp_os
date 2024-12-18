@@ -44,6 +44,8 @@ protected:
         explicit node(
             tkey const &key,
             tvalue &&value);
+
+        virtual ~node() noexcept = default;
         
     };
 
@@ -598,7 +600,7 @@ protected:
 
     #pragma endregion template methods definition
 
-private:
+protected:
 
     node *_root;
 
@@ -727,7 +729,7 @@ public:
 
     #pragma endregion iterators requests definition
 
-protected:
+public:
 
     #pragma region subtree rotations definition
 
@@ -764,11 +766,11 @@ protected:
 
     void destroyNodes(node *);
 
-    void privatePrint(std::ostream &, node *) const;
+    void privatePrint(std::ostream &, node *, size_t) const;
 
     void copyTree(binary_search_tree<tkey, tvalue> const &);
 
-    void copyNode(node *, node *&);
+    virtual void copyNode(node *, node *&);
 public:
     void printTree(std::ostream &) const;
     #pragma endregion myMethods definition!!!
@@ -2182,10 +2184,10 @@ tvalue const &binary_search_tree<tkey, tvalue>::obtaining_template_method::obtai
 {
     if(this->_tree->_root == nullptr) throw std::logic_error("Tree is empty");
     auto pathToNode = template_method_basics::searchPath(key);
-    auto &node = pathToNode.top();
-    if(*node == nullptr) throw std::logic_error("Obtain error");
+    auto *node = *pathToNode.top();
+    if(node == nullptr) throw std::logic_error("Obtain error");
     this->balance(pathToNode);
-    return (*node)->_value;
+    return node->_value;
     //throw not_implemented("template<typename tkey, typename tvalue> tvalue const &binary_search_tree<tkey, tvalue>::obtaining_template_method::obtain(tkey const &)", "your code should be here...");
 }
 
@@ -2874,11 +2876,11 @@ size_t binary_search_tree<tkey, tvalue>::insertion_template_method::getSizeOfNod
 }
 
 template<typename tkey, typename tvalue>
-void binary_search_tree<tkey, tvalue>::privatePrint(std::ostream &str, node *n) const {
+void binary_search_tree<tkey, tvalue>::privatePrint(std::ostream &str, node *n, size_t death) const {
     if(n == nullptr) return;
-    privatePrint(str, n->left_subtree);
-    str << n->_value << ' ';
-    privatePrint(str, n->right_subtree);
+    privatePrint(str, n->left_subtree, death + 1);
+    str << n->_value << '(' << death << ')' << ' ';
+    privatePrint(str, n->right_subtree, death + 1);
 }
 
 template<typename tkey, typename tvalue>
@@ -2887,7 +2889,7 @@ void binary_search_tree<tkey, tvalue>::printTree(std::ostream &str) const {
         str << "Tree is empty" << std::endl;
         return;
     }
-    privatePrint(str, _root);
+    privatePrint(str, _root, 0);
 }
 
 template<typename tkey, typename tvalue>

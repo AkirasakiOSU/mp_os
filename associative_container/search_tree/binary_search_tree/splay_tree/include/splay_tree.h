@@ -67,10 +67,10 @@ private:
         tvalue dispose(
             tkey const &key) override;
 
-        std::pair<typename binary_search_tree<tkey, tvalue>::node *, typename binary_search_tree<tkey, tvalue>::node **>
+        std::pair<typename binary_search_tree<tkey, tvalue>::node **, typename binary_search_tree<tkey, tvalue>::node *>
             separate(typename binary_search_tree<tkey, tvalue>::node **) noexcept;
 
-        void merge(std::pair<typename binary_search_tree<tkey, tvalue>::node *, typename binary_search_tree<tkey, tvalue>::node **> &);
+        void merge(std::pair<typename binary_search_tree<tkey, tvalue>::node **, typename binary_search_tree<tkey, tvalue>::node *> &);
 
         void balance(std::stack<typename binary_search_tree<tkey, tvalue>::node **> &) override;
         
@@ -105,8 +105,7 @@ public:
     splay_tree<tkey, tvalue> &operator=(
         splay_tree<tkey, tvalue> &&other) noexcept;
 
-    friend class splayer;
-    friend class disposal_template_method;
+    void copyNode(typename binary_search_tree<tkey, tvalue>::node *, typename binary_search_tree<tkey, tvalue>::node *&) override;
 };
 
 template<
@@ -177,9 +176,18 @@ template<
     typename tkey,
     typename tvalue>
 splay_tree<tkey, tvalue>::splay_tree(
-    splay_tree<tkey, tvalue> const &other)
+    splay_tree<tkey, tvalue> const &other) :
+    binary_search_tree<tkey, tvalue>(
+        new splay_tree<tkey, tvalue>::insertion_template_method(this, other._insertion_template->_strategy),
+        new splay_tree<tkey, tvalue>::obtaining_template_method(this),
+        new splay_tree<tkey, tvalue>::disposal_template_method(this, other._disposal_template->_strategy),
+        other._keys_comparer,
+        other.get_allocator(),
+        other.get_logger()
+    )
 {
-    throw not_implemented("template<typename tkey, typename tvalue> splay_tree<tkey, tvalue>::splay_tree(splay_tree<tkey, tvalue> const &)", "your code should be here...");
+    copyNode(other._root, this->_root);
+    //throw not_implemented("template<typename tkey, typename tvalue> splay_tree<tkey, tvalue>::splay_tree(splay_tree<tkey, tvalue> const &)", "your code should be here...");
 }
 
 template<
@@ -188,16 +196,36 @@ template<
 splay_tree<tkey, tvalue> &splay_tree<tkey, tvalue>::operator=(
     splay_tree<tkey, tvalue> const &other)
 {
-    throw not_implemented("template<typename tkey, typename tvalue> splay_tree<tkey, tvalue> &splay_tree<tkey, tvalue>::operator=(splay_tree<tkey, tvalue> const &)", "your code should be here...");
+    if(this != &other) {
+        this->destroyNodes();
+        this->_keys_comparer = other._keys_comparer;
+        this->_logger = other._logger;
+        this->_allocator = other._allocator;
+        this->_insertion_template->_strategy = other._insertion_template->_strategy;
+        this->_disposal_template->_strategy = other._disposal_template->_strategy;
+        copyNode(other._root, this->_root);
+    }
+    return *this;
+    //throw not_implemented("template<typename tkey, typename tvalue> splay_tree<tkey, tvalue> &splay_tree<tkey, tvalue>::operator=(splay_tree<tkey, tvalue> const &)", "your code should be here...");
 }
 
 template<
     typename tkey,
     typename tvalue>
 splay_tree<tkey, tvalue>::splay_tree(
-    splay_tree<tkey, tvalue> &&other) noexcept
+    splay_tree<tkey, tvalue> &&other) noexcept :
+    binary_search_tree<tkey, tvalue>(
+        new splay_tree<tkey, tvalue>::insertion_template_method(this, other._insertion_template->_strategy),
+        new splay_tree<tkey, tvalue>::obtaining_template_method(this),
+        new splay_tree<tkey, tvalue>::disposal_template_method(this, other._disposal_template->_strategy),
+        other._keys_comparer,
+        other.get_allocator(),
+        other.get_logger()
+    )
 {
-    throw not_implemented("template<typename tkey, typename tvalue> splay_tree<tkey, tvalue>::splay_tree(splay_tree<tkey, tvalue> &&) noexcept", "your code should be here...");
+    this->_root = other._root;
+    other._root = nullptr;
+    //throw not_implemented("template<typename tkey, typename tvalue> splay_tree<tkey, tvalue>::splay_tree(splay_tree<tkey, tvalue> &&) noexcept", "your code should be here...");
 }
 
 template<
@@ -206,7 +234,18 @@ template<
 splay_tree<tkey, tvalue> &splay_tree<tkey, tvalue>::operator=(
     splay_tree<tkey, tvalue> &&other) noexcept
 {
-    throw not_implemented("template<typename tkey, typename tvalue> splay_tree<tkey, tvalue> &splay_tree<tkey, tvalue>::operator=(splay_tree<tkey, tvalue> &&) noexcept", "your code should be here...");
+    if(this != &other) {
+        this->destroyNodes();
+        this->_keys_comparer = other._keys_comparer;
+        this->_logger = other._logger;
+        this->_allocator = other._allocator;
+        this->_insertion_template->_strategy = other._insertion_template->_strategy;
+        this->_disposal_template->_strategy = other._disposal_template->_strategy;
+        this->_root = other._root;
+        other._root = nullptr;
+    }
+    return *this;
+    //throw not_implemented("template<typename tkey, typename tvalue> splay_tree<tkey, tvalue> &splay_tree<tkey, tvalue>::operator=(splay_tree<tkey, tvalue> &&) noexcept", "your code should be here...");
 }
 
 template<
@@ -240,10 +279,10 @@ tvalue splay_tree<tkey, tvalue>::disposal_template_method::dispose(tkey const &k
     auto value = std::move((*top)->_value);
     this->splay(pathToNode);
     auto trees = separate(this->searchPath(key).top());
-    auto child = (*trees.second)->right_subtree;
-    (*trees.second)->~node();
-    allocator_guardant::deallocate_with_guard(*trees.second);
-    (*trees.second) = child;
+    auto child = (*trees.first)->left_subtree;
+    (*trees.first)->~node();
+    allocator_guardant::deallocate_with_guard(*trees.first);
+    (*trees.first) = child;
     merge(trees);
     return value;
 }
@@ -251,30 +290,30 @@ tvalue splay_tree<tkey, tvalue>::disposal_template_method::dispose(tkey const &k
 template<
     typename tkey,
     typename tvalue>
-std::pair<typename binary_search_tree<tkey, tvalue>::node *, typename binary_search_tree<tkey, tvalue>::node **>
+std::pair<typename binary_search_tree<tkey, tvalue>::node **, typename binary_search_tree<tkey, tvalue>::node *>
             splay_tree<tkey, tvalue>::disposal_template_method::separate(typename binary_search_tree<tkey, tvalue>::node **sepNode) noexcept {
-    std::pair<typename binary_search_tree<tkey, tvalue>::node *, typename binary_search_tree<tkey, tvalue>::node **>
+    std::pair<typename binary_search_tree<tkey, tvalue>::node **, typename binary_search_tree<tkey, tvalue>::node *>
         trees;
-    trees.first = (*sepNode)->left_subtree;
-    (*sepNode)->left_subtree = nullptr;
-    trees.second = sepNode;
+    trees.first = sepNode;
+    trees.second = (*sepNode)->right_subtree;
+    (*sepNode)->right_subtree = nullptr;
     return trees;
 }
 
 template<typename tkey, typename tvalue>
-void splay_tree<tkey, tvalue>::disposal_template_method::merge(std::pair<typename binary_search_tree<tkey, tvalue>::node *, typename binary_search_tree<tkey, tvalue>::node **> &trees) {
-    if(*trees.second == nullptr) {
-        *trees.second  = trees.first;
+void splay_tree<tkey, tvalue>::disposal_template_method::merge(std::pair<typename binary_search_tree<tkey, tvalue>::node **, typename binary_search_tree<tkey, tvalue>::node *> &trees) {
+    if(*trees.first == nullptr) {
+        *trees.first  = trees.second;
         return;
     }
-    std::stack<typename binary_search_tree<tkey, tvalue>::node **> pathToMaxNode;
-    auto **pNow = trees.second;
+    std::stack<typename binary_search_tree<tkey, tvalue>::node **> pathToMinNode;
+    auto **pNow = trees.first;
     while(*pNow != nullptr) {
-        pathToMaxNode.push(pNow);
-        pNow = &((*pNow)->left_subtree);
+        pathToMinNode.push(pNow);
+        pNow = &((*pNow)->right_subtree);
     }
-    this->splay(pathToMaxNode);
-    (*trees.second)->left_subtree = trees.first;
+    this->splay(pathToMinNode);
+    (*trees.first)->right_subtree = trees.second;
 }
 
 
@@ -317,4 +356,14 @@ void splay_tree<tkey, tvalue>::splayer::splay(std::stack<typename binary_search_
         toSplay = gParrent;
     }
 }
+
+template<typename tkey, typename tvalue>
+void splay_tree<tkey, tvalue>::copyNode(typename binary_search_tree<tkey, tvalue>::node *other, typename binary_search_tree<tkey, tvalue>::node *&dest) {
+    if(other == nullptr) return;
+    dest = reinterpret_cast<typename binary_search_tree<tkey, tvalue>::node *>(allocator_guardant::allocate_with_guard(sizeof(typename binary_search_tree<tkey, tvalue>::node)));
+    new (dest) typename binary_search_tree<tkey, tvalue>::node(other->_key, other->_value);
+    copyNode(other->left_subtree, dest->left_subtree);
+    copyNode(other->right_subtree, dest->right_subtree);
+}
+
 #endif //MATH_PRACTICE_AND_OPERATING_SYSTEMS_SPLAY_TREE_H

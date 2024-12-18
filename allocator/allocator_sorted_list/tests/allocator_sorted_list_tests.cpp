@@ -270,7 +270,7 @@ void printInfo(allocator_sorted_list const &all) {
     std::cout << std::endl;
 }
 
-int main() {
+/*int main() {
     client_logger_builder b;
     b.add_file_stream("trace.txt", logger::severity::trace);
     b.add_file_stream("debug.txt", logger::severity::debug);
@@ -294,13 +294,13 @@ int main() {
     printInfo(all);
     delete l;
     return 0;
-}
+}*/
 
-/*int main(
+int main(
     int argc,
     char **argv)
 {
     testing::InitGoogleTest(&argc, argv);
     
     return RUN_ALL_TESTS();
-}*/
+}
